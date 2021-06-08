@@ -59,52 +59,57 @@ TOP_CARD=dbc.Card(
                     width={"size": 3}),]),
         html.Br(),
         dbc.Row([
-dbc.Col([
-    dbc.Row([html.Label("INPUT DISTRIBUTION")],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
-    dbc.Row([
-            dcc.Dropdown(
-                     options=[
-                         {'label': 'Gaussian', 'value': 'Gaussian'},
-                         {'label': 'Uniform', 'value': 'Uniform'},
-                         {'label': 'ChebyShev', 'value': 'Chebyshev'},
-                        {'label': 'Chi', 'value': 'chi'},
-                        {'label': 'Cauchy', 'value': 'cauchy'},
-                        {'label': 'LogNormal', 'value': 'Lognormal'},
-                         {'label': 'Beta', 'value': 'Beta'}
-                     ],
-                     placeholder='Select a distribution'
-                     , className="m-1",id='drop-1',
-                    optionHeight=25,
-                style={
-                    "width":"150px",
-                }
-                 )]),],
-            width={'order':'first','offset':0}),
+            dbc.Col([
+                dbc.Row([html.Label("INPUT DISTRIBUTION")],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
+                dbc.Row([
+                    dcc.Dropdown(
+                        options=[
+                            {'label': 'Gaussian', 'value': 'Gaussian'},
+                            {'label': 'Uniform', 'value': 'Uniform'},
+                            {'label': 'ChebyShev', 'value': 'Chebyshev'},
+                            {'label': 'Chi', 'value': 'chi'},
+                            {'label': 'Cauchy', 'value': 'cauchy'},
+                            {'label': 'LogNormal', 'value': 'Lognormal'},
+                            {'label': 'Beta', 'value': 'Beta'}
+                        ],
+                        placeholder='Select a distribution'
+                        , className="m-1",id='drop-1',
+                        optionHeight=25,
+                        style={
+                            "width":"150px",
+                        }
+                    )
+                ]),
+            ], lg=2, width=4),
             dbc.Col([
                 dbc.Row([html.Label('INPUT STATISTICAL MOMENTS')],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
                 dbc.Row([
-                    dbc.Col([dcc.Input(id="params", type="text", value='', placeholder='', className='ip_field',style={'width': '150px'}),
-                   ],width={'offset':1}),
-            dbc.Col([html.Div([
-            dcc.Input(id="params_2", type="text",value='',placeholder='',className='ip_field',style={'width': '150px'}),
-            ],style={},id='wrap_input'),],width={}),
-            dbc.Col([html.Div([
-                dcc.Input(id="params_3", type="text", value='', placeholder='', className='ip_field',style={'width': '150px'}),
-                    ],style={}, id='wrap_input_2'),],width={}),
+                    dbc.Col([html.Div([
+                            dcc.Input(id="params", type="text",value='',placeholder='',className='ip_field',style={'width': '150px'}),
+                        ],style={}),],width={}),
+                    dbc.Col([html.Div([
+                            dcc.Input(id="params_2", type="text",value='',placeholder='',className='ip_field',style={'width': '150px'}),
+                        ],style={},id='wrap_input'),],width={}),
+                    dbc.Col([html.Div([
+                            dcc.Input(id="params_3", type="text", value='', placeholder='', className='ip_field',style={'width': '150px'}),
+                        ],style={}, id='wrap_input_2'),],width={}),
+                    dbc.Col([
+                        html.Div([
+                            dcc.Input(id="params_4", type="text", value='', placeholder='', className='ip_field',style={'width': '150px'}),
+                        ],style={}, id='wrap_input_3'),],width={}),
+                ]),
+            ], lg=5, xs=3, width=8),
             dbc.Col([
-                html.Div([
-                    dcc.Input(id="params_4", type="text", value='', placeholder='', className='ip_field',style={'width': '150px'}),
-                ], style={}, id='wrap_input_3'), ]),]),],width={'offset':1}),
-        dbc.Col([
-            dbc.Row([html.Label('INPUT MIN/MAX VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
-            dbc.Row([
-            dbc.Col([
-            dcc.Input(id="max_val", type="number", value='', placeholder='Enter maximum value...', className='ip_field',style={'width': '150px'}),
-        ],width={'order':'first','size':5}),
-        dbc.Col([
-        dcc.Input(id="min_val",type="number",value='',placeholder="Enter minimum value...", className='ip_field',style={'width': '150px'})
-                ],width={'order':2,'size':3})])
-],width={"offset":1})
+                dbc.Row([html.Label('INPUT MIN/MAX VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Input(id="max_val", type="number", value='', placeholder='Enter maximum value...', className='ip_field',style={'width': '150px'}),
+                    ]),
+                    dbc.Col([
+                        dcc.Input(id="min_val",type="number",value='',placeholder="Enter minimum value...", className='ip_field',style={'width': '150px'})
+                    ])
+                ], justify='start')
+            ], lg=3, xs=2, width=6)
 
         ],
         no_gutters=True,
