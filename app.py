@@ -80,7 +80,7 @@ TOP_CARD=dbc.Card(
 )
 
 
-TOP_GRAPH=html.Div(id='plot_pdf')
+TOP_GRAPH=dcc.Graph(id='plot_pdf')
 
 
 
@@ -197,7 +197,7 @@ def addInputs(n_clicks,children):
                             switch=True,
                             id={
                                 "type":"radio_pdf",
-                                "index":"n_clicks"
+                                "index":n_clicks
                             }
                         )
                     ])
@@ -248,40 +248,37 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
     return param_obj,s_values,pdf
 
 @app.callback(
-    Output({'type': 'plot_pdf', 'index': dash.dependencies.MATCH}, 'children'),
-    [Input({'type': 'radio_pdf', 'index': dash.dependencies.MATCH}, 'value')],
-    [State({'type': 'params', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_2', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_3', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_4', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'drop-1', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'max_val', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'min_val', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'AP_button', 'index': dash.dependencies.MATCH}, 'n_clicks')
+    Output('plot_pdf', 'figure'),
+    [Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value')],
+    [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
+     State('AP_button', 'n_clicks')
      ],
     prevent_initial_call=True
 )
 def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val,n_clicks):
     fig=go.Figure()
-    if pdf_val == 'val_{}'.format(n_clicks):
+    elem = ['val_{}'.format(n_clicks)]
+    check = elem in pdf_val
+    if check:
+        i = pdf_val.index(elem)
         if params4_val and params3_val is None:
-            param,s_values,pdf=CreateParam(distribution=drop1_val,shape_parameter_A=param1_val,shape_parameter_B=params2_val,
-                                       shape_A=None,shape_B=None,min=min_val,max=max_val)
+            param,s_values,pdf=CreateParam(distribution=drop1_val[i],shape_parameter_A=param1_val[i],shape_parameter_B=params2_val[i],
+                                       shape_A=None,shape_B=None,min=min_val[i],max=max_val[i])
 
             fig.add_trace(go.Scatter(x=s_values,y=pdf,line = dict(color='rgba(0,0,0,0)'),fill='tonexty')),
-            return fig
         else:
-            param, s_values, pdf = CreateParam(distribution=drop1_val, shape_parameter_A=param1_val,
-                                           shape_parameter_B=params2_val,
-                                           shape_A=None, shape_B=None, min=min_val, max=max_val)
+            param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
+                                           shape_parameter_B=params2_val[i],
+                                           shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
 
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgba(0,0,0,0)'), fill='tonexty')),
-            return fig
-    else:
-        fig.add_trace(x=[],y=[])
-        return fig
-
-
+    return fig
 
 
 if __name__=="__main__":
