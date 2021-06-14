@@ -269,10 +269,8 @@ def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max
     id = ctx.triggered[0]['prop_id'].split('.')[0]
     idx = ast.literal_eval(id)['index']
 
-    #elem = ['val_{}'.format(idx)]
     elem = [0, 'val_{}'.format(idx)]
     check = elem in pdf_val
-    #print('In PlotPDF: ', id, pdf_val, elem, check)
     if check:
         i = pdf_val.index(elem)
         if params4_val and params3_val is None:
