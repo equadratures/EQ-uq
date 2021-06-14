@@ -1,38 +1,36 @@
 body{
-  background-color: 	#696969;
+  background-color: 	#FFFFFF;
 }
 
 .ip_buttons{
-  color: #FFF;
   text-align: center;
   padding: 5px 10px;
-  border:3px solid #800080 ;
+  border:3px solid #4663ac ;
   background: none;
-  background-color: transparent;
+  background-color: #FFFFFF;
   display: inline-block;
   font-size: 12px;
   font-family: "Lucida Console", Monaco, monospace;
+  color:#000000;
 }
 
 
 
 .rc-slider-track {
-  background-color: #800080;
+  background-color: #4663ac;
 }
 
 .Side-text{
 text-align: center;
-text-shadow: 2px 2px 4px #800080;
-margin-top: 100px;
-color: #800080;
-size:100px;
-font-size: 43px;
+text-shadow: 2px 2px 4px #63C5DA;
+color: #63C5DA;
+size:10px;
+font-size: 20px;
 }
 
 .AT-button{
-    color: #FFF;
+    color: #4663ac;
     text-align: center;
-    margin-top: 60px;
     padding: 5px 10px;
     border: none;
     background: none;
@@ -42,10 +40,11 @@ font-size: 43px;
     font-size: 12px;
     letter-spacing: 1px;
     cursor: pointer;
-    box-shadow: inset 0 0 0 0 #800080;
+    box-shadow: inset 0 0 0 0 #4663ac;
     -webkit-transition: ease-out 0.4s;
     -moz-transition: ease-out 0.4s;
     transition: ease-out 0.4s;
+    color: #000000;
 }
 .AT-button:hover{
   box-shadow: inset 400px 0 0 0 #800080;
@@ -53,8 +52,32 @@ font-size: 43px;
 
 .ip_field{
   box-sizing: border-box;
-  border: 3px solid #800080;
+  border: 3px solid #4663ac;
   border-radius: 4px;
   background: none;
   background-color: transparent;
+}
+
+::placeholder{
+  color:#000000;
+}
+
+.link:active{
+  border-bottom: 3px solid red;
+}
+.top_card{
+  overflow-y: scroll;
+}
+
+.top_card::-webkit-scrollbar {
+  width: 0.4em;
+}
+
+.top_card::-webkit-scrollbar-track {
+  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
+}
+
+.top_card::-webkit-scrollbar-thumb {
+  background-color: darkgrey;
+  outline: 1px solid slategrey;
 }
