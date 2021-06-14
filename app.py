@@ -11,6 +11,7 @@ import dash_daq as daq
 import equadratures as eq
 import equadratures.distributions as db
 import requests
+import ast
 from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
 
@@ -195,6 +196,7 @@ def addInputs(n_clicks,children):
             {"label": "Pdf_{}".format(n_clicks), "value": "val_{}".format(n_clicks)},
                             ],
                             switch=True,
+                            value=[0],
                             id={
                                 "type":"radio_pdf",
                                 "index":n_clicks
@@ -249,7 +251,7 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
 
 @app.callback(
     Output('plot_pdf', 'figure'),
-    [Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value')],
+    Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
     [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
@@ -263,8 +265,14 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
 )
 def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val,n_clicks):
     fig=go.Figure()
-    elem = ['val_{}'.format(n_clicks)]
+    ctx = dash.callback_context
+    id = ctx.triggered[0]['prop_id'].split('.')[0]
+    idx = ast.literal_eval(id)['index']
+
+    #elem = ['val_{}'.format(idx)]
+    elem = [0, 'val_{}'.format(idx)]
     check = elem in pdf_val
+    #print('In PlotPDF: ', id, pdf_val, elem, check)
     if check:
         i = pdf_val.index(elem)
         if params4_val and params3_val is None:
@@ -280,6 +288,30 @@ def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgba(0,0,0,0)'), fill='tonexty')),
     return fig
 
+@app.callback(
+    Output({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
+    Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
+    prevent_initial_call=True
+)
+def setToggles(pdf_val):
+    ctx = dash.callback_context
+    id = ctx.triggered[0]['prop_id'].split('.')[0]
+    idx = ast.literal_eval(id)['index']
+
+    elem = [0, 'val_{}'.format(idx)]
+    check = elem in pdf_val
+    ret_vals = pdf_val
+    if check:
+        i = pdf_val.index(elem)
+        ret_vals[i] = elem
+
+        for j in range(len(ret_vals)):
+            if j != i:
+                ret_vals[j] = [0]
+
+        test = [[0] if j != i else elem for j,x in enumerate(pdf_val)]
+
+    return ret_vals
 
 if __name__=="__main__":
     app.run_server(debug=True)
