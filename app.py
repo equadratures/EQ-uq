@@ -13,7 +13,10 @@ import equadratures.distributions as db
 import requests
 from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
-
+import json
+import jsonpickle
+import ast
+from equadratures import *
 
 external_stylesheets=[dbc.themes.BOOTSTRAP]
 
@@ -37,7 +40,7 @@ TOP_CARD_STYLE={
 }
 
 MEAN_VAR_DIST={
-    "Gaussian":'mean','variance'
+    "Gaussian":db.gaussian,
     "Uniform":db.uniform
 }
 SHAPE_PARAM_DIST={
@@ -49,6 +52,12 @@ LOWER_UPPER_DIST={
 LOW_UP_SHA_SHB={
     "Beta":db.beta
 }
+
+
+
+
+
+
 
 TOP_CARD=dbc.Card(
     [
@@ -69,47 +78,183 @@ TOP_CARD=dbc.Card(
             ]
         )
     ]
-    , className='top_card',
+    ,className='top_card',
     color="#FFFFFF",
     inverse=True,
-    style={"width": "1300px",
-           'height': '350px',
-           "left": "2rem",
-           "top": "1rem",
+    style={"width": "96%",
+           'height': '370px',
+           "left":"2rem",
+           "top":"5rem",
            },
 )
 
 
-TOP_GRAPH=html.Div(id='plot_pdf')
 
+# TOP_TABLE=dbc.Container(
+#     fig=go.Figure(data=[go.Table(header=dict(values=['Parameter','Distribution','Mean','Variance','Max','Min']),
+#            TOP_CARD=dbc.Card(
+#     [
+#
+# )
 
+PDF_GRAPH= dbc.Card([
+    dcc.Graph(id='plot_pdf', style={'width': '100%', 'display': 'inline-block', 'margin-top': '10px'})
+], style={'display': 'inline','top':"5rem",'left':'2rem'})
 
+BASIS_CARD=dbc.Card([
+html.Br(),
+dbc.Row([
+    dbc.Col([
+        dcc.Dropdown(
+            options=[
+                {'label': 'Univariate', 'value': 'Univariate'},
+                {'label': 'Total-order', 'value': 'Total-order'},
+                {'label': 'Tensor-grid', 'value': 'Tensor-grid'},
+                {'label': 'Sparse-grid', 'value': 'Sparse-grid'},
+                {'label': 'Hyperbolic-basis', 'value': 'Hyperbolic-basis'},
+                {'label': 'Euclidean-degree', 'value': 'Euclidean-degree'}
+            ],
+            placeholder='Select Basis',
+            className="m-1",id='drop_basis',
+                        optionHeight=45,
+                        style={
+                            "width":"165px",
+                        }
+                    ),
 
-NAV=dbc.Navbar([
-    dbc.Container([
-    dbc.Row([
-    dbc.Col(html.Img(src='assets/eq.png',height='50px'),width={'order':'first'}),
-    dbc.Col(html.Label("EQUADRATURES",className='Side-text'),width={'offset':0}),
-        ],
-        align='center',
-        no_gutters=True
-    ),
-    dbc.Nav([
-    dbc.NavItem(dbc.NavLink('ANALYTICAL MODEL',href='#',className='link')),
-    dbc.NavItem(dbc.NavLink('OFFLINE MODEL',href='#',className='link')),
-   ])
-
+    ],width=3),
+    dbc.Col([
+        dbc.Row([
+    dbc.Col([
+        dbc.Input(bs_size="sm", id='basis_order', type="number", value='', placeholder='Order', className='ip_field',
+                  style={'width': '100px'}),
+    ], width=3),
+    dbc.Col([
+        dbc.Input(bs_size="sm", id='q_val', type="number", value='', placeholder='q',className='ip_field',
+                  disabled=True,style={'width': '100px'}),
+    ], width=3),
+    dbc.Col([
+        dbc.Input(bs_size="sm",id='levels',type='number',value='',placeholder='Level',className='ip_field',
+                  disabled=True,style={'width':'100px'})
+    ], width=3),
+            ], no_gutters=True,
+        justify="start")
+],width=9)
 ],
+no_gutters=True,
+justify='start'
 ),
-    ],
-className='nav',
-color="#FAFAFA")
+    html.Br(),
+    dbc.Row([
+        dbc.Col([
+dcc.Dropdown(
+            options=[
+                {'label': 'Linear', 'value': 'Linear'},
+                {'label': 'Exponential', 'value': 'Exponential'},
+            ],
+            placeholder='Growth Rule',
+            className="m-1",id='basis_growth_rule',
+                        optionHeight=45,
+                        disabled=True,
+                        style={
+                            "width":"800px",
+                            "display":"flex"
+                        }
+                    ),
+
+        ])
+    ]),
+    dbc.Row([
+        dbc.Col([
+            dcc.Dropdown(
+            options=[
+                {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
+                {'label': 'Least-squares', 'value': 'least-squares'},
+                {'label': 'Minimum-norm', 'value': 'minimum-norm'},
+                {'label': 'Numerical-integration', 'value': 'numerical-integration'},
+                {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
+                {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
+                {'label': 'Huber', 'value': 'huber'},
+                {'label': 'Elastic-net', 'value': 'elastic-net'},
+                {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
+            ],
+            placeholder='Solver Method',
+            className="m-1",id='solver_method',
+                        optionHeight=45,
+                        style={
+                            "width":"200px",
+                        }
+                    ),
+        ])
+        ]),
+    html.Br(),
+    dbc.Row([html.Button('Cardinality Check', id='CC_button', n_clicks=0, className='ip_buttons')],
+            ),
+    html.Br(),
+    dbc.Row([
+        dbc.Col(html.Label('Cardinality'),width='auto'),
+        dbc.Col(dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='', className='ip_field',
+                  disabled=True,style={'width': '100px'}),width='auto'),
+        dbc.Col(html.Div(children=[],id='test'),width='auto'),
+    ],no_gutters=True,
+    justify='start'),
+
+
+],style={"top": "5.5rem","margin-left":"0.5rem","width":"96%","height":"460px"})
+
+
+
+
+
+
+COMPUTE_CARD=dbc.Card([
+    dbc.Button(['COMPUTE UNCERTAINTY'])
+],style={"width":'50%','display':'inline-block'})
+
+
+
+
+navbar = dbc.Navbar(
+    dbc.Container(
+        [
+            html.A(
+                dbc.Row(
+                    [
+                        dbc.Col(html.Img(src='https://equadratures.org/_static/logo_new.png', height="40px")),
+                    ],
+                    align="center",
+                    no_gutters=True,
+                ),
+                href="https://equadratures.org/",
+            ),
+            dbc.Nav(
+                [
+                    dbc.NavItem(dbc.NavLink("Introduction", href="/Intro",active='exact',className='px-3')),
+                    dbc.NavItem(dbc.NavLink("Analytical Model", href="/", active='exact',className='px-3')),
+                    dbc.NavItem(dbc.NavLink("Offline Model", href="/offline",active='exact',className='px-3'))
+                ], className="ml-auto", navbar=True, fill=True
+            ),
+        ], fluid=True
+    ),
+    color="white",
+    dark=False,
+    className="mb-0",
+    fixed='top'
+)
 
 
 app.layout=html.Div([
-NAV,
-TOP_CARD,
-TOP_GRAPH
+navbar,
+dbc.Row([
+dbc.Col(TOP_CARD,width=12),
+]),
+dbc.Row([
+    dbc.Col(PDF_GRAPH,width=5),
+    dbc.Col(BASIS_CARD,width=7)
+],
+
+    no_gutters=False
+)
 ])
 
 
@@ -137,7 +282,7 @@ def addInputs(n_clicks,children):
         add_card=dbc.Row([
             dbc.Col([
                 dbc.FormGroup([
-                dbc.Row([html.Label("INPUT DISTRIBUTION")],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
+                dbc.Row([html.Label("INPUT DISTRIBUTION")],style={"color":"#000000","font-size":"0.9rem","font-family":"Raleway"}),
                 dbc.Row([
                     dcc.Dropdown(
                         options=[
@@ -163,7 +308,7 @@ def addInputs(n_clicks,children):
              ])],width=3,lg=2),
             dbc.Col([
                 dbc.FormGroup([
-                dbc.Row([html.Label('INPUT STATISTICAL MOMENTS')],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
+                dbc.Row([html.Label('INPUT STATISTICAL MOMENTS')],style={"color":"#000000","font-size":"0.9rem","font-family":"Raleway"}),
                 dbc.Row([
                     dbc.Col([
                             dbc.Input(bs_size="sm",id={'type':'params','index':n_clicks}, type="number",value='',placeholder='',className='ip_field',style={'width': '100px'}),
@@ -181,7 +326,7 @@ def addInputs(n_clicks,children):
                 ]),
             ]),],lg=4, xs=3, width=4),
             dbc.Col([
-                dbc.Row([html.Label('INPUT MIN/MAX VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":"Times New Roman, Times, serif"}),
+                dbc.Row([html.Label('INPUT MIN/MAX VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":'Raleway'}),
                 dbc.Row([
                     dbc.Col([
                         dbc.Input(bs_size="sm",id={'type':'max_val','index':n_clicks}, type="number", value='', placeholder='Maximum value...', className='ip_field',style={'width': '100px'}),
@@ -191,13 +336,14 @@ def addInputs(n_clicks,children):
                     ]),
                     dbc.Col([
                         dbc.Checklist(
-                            options = [
-            {"label": "Pdf_{}".format(n_clicks), "value": "val_{}".format(n_clicks)},
+                            options=[
+                                {"label": "Pdf_{}".format(n_clicks), "value": "val_{}".format(n_clicks)},
                             ],
                             switch=True,
+                            value=[0],
                             id={
-                                "type":"radio_pdf",
-                                "index":"n_clicks"
+                                "type": "radio_pdf",
+                                "index": n_clicks
                             }
                         )
                     ])
@@ -211,6 +357,8 @@ def addInputs(n_clicks,children):
         add_card=dbc.Row()
     children.append(add_card)
     return children
+
+
 
 
 
@@ -229,7 +377,7 @@ def UpdateInputField(value):
     show=False
     hide=True
     if value is None:
-        return ['Statistical Measures based on Distribution',' ',' ',' ',hide,hide,hide]
+        return ['Statistical Measures based on Distribution','...','...','...',hide,hide,hide]
     if value in MEAN_VAR_DIST.keys():
         return 'Mean...','Variance...',' ',' ',show,hide,hide
     if value in SHAPE_PARAM_DIST.keys():
@@ -238,6 +386,39 @@ def UpdateInputField(value):
         return 'Lower Value...','Upper Value...','','',show,hide,hide
     if value in LOW_UP_SHA_SHB.keys():
         return 'Mean...','Variance...','Shape A...','Shape B...',show,show,show
+
+@app.callback(
+    Output('test','children'),
+    [
+        Input('AP_button','n_clicks'),
+        Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
+        Input({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
+        Input('test','children')
+    ],
+    prevent_intial_call=True
+)
+
+def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B,distribution,min,max,children):
+    i=len(distribution)
+    param_list=[]
+    if i>0:
+        for j in range(i):
+            if j==0:
+
+                param = eq.Parameter(distribution=distribution[0], shape_parameter_A=shape_parameter_A[0]
+                                     , shape_parameter_B=shape_parameter_B[0], lower=min[0], upper=max[0], order=3)
+            else:
+                param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+                                 , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=3)
+            param_list.append(param)
+
+    return jsonpickle.encode(param_list)
+
 
 
 
@@ -248,40 +429,171 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
     return param_obj,s_values,pdf
 
 @app.callback(
-    Output({'type': 'plot_pdf', 'index': dash.dependencies.MATCH}, 'children'),
-    [Input({'type': 'radio_pdf', 'index': dash.dependencies.MATCH}, 'value')],
-    [State({'type': 'params', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_2', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_3', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'params_4', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'drop-1', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'max_val', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'min_val', 'index': dash.dependencies.MATCH}, 'value'),
-     State({'type': 'AP_button', 'index': dash.dependencies.MATCH}, 'n_clicks')
+    Output('plot_pdf', 'figure'),
+    Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
+    [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
      ],
     prevent_initial_call=True
 )
-def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val,n_clicks):
-    fig=go.Figure()
-    if pdf_val == 'val_{}'.format(n_clicks):
+def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val):
+    layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
+              'autosize': True}
+    fig=go.Figure(layout=layout)
+    fig.update_layout(
+        xaxis=dict(
+            showline=True,
+            showgrid=False,
+            showticklabels=True,
+            linecolor='rgb(204, 204, 204)',
+            linewidth=2,
+            ticks='outside',
+            tickfont=dict(
+                family='Arial',
+                size=12,
+                color='rgb(82, 82, 82)',
+            ),
+        ),
+        yaxis=dict(
+            showgrid=False,
+            zeroline=False,
+            showline=True,
+            showticklabels=True,
+        ),
+        autosize=True,
+        margin=dict(
+            autoexpand=False,
+            l=100,
+            r=20,
+            t=110,
+        ),
+        showlegend=False,
+        plot_bgcolor='white'
+    )
+    ctx = dash.callback_context
+    id = ctx.triggered[0]['prop_id'].split('.')[0]
+    idx = ast.literal_eval(id)['index']
+
+    elem = [0, 'val_{}'.format(idx)]
+    check = elem in pdf_val
+    if check:
+        i = pdf_val.index(elem)
         if params4_val and params3_val is None:
-            param,s_values,pdf=CreateParam(distribution=drop1_val,shape_parameter_A=param1_val,shape_parameter_B=params2_val,
-                                       shape_A=None,shape_B=None,min=min_val,max=max_val)
+            param,s_values,pdf=CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
+                                           shape_parameter_B=params2_val[i],shape_A=None, shape_B=None,
+                                           min=min_val[i], max=max_val[i])
 
-            fig.add_trace(go.Scatter(x=s_values,y=pdf,line = dict(color='rgba(0,0,0,0)'),fill='tonexty')),
-            return fig
+            fig.add_trace(go.Scatter(x=s_values,y=pdf,line = dict(color='rgb(0,176,246)'),fill='tonexty',mode='lines',name='NACA0012',line_width=4,line_color='black')),
         else:
-            param, s_values, pdf = CreateParam(distribution=drop1_val, shape_parameter_A=param1_val,
-                                           shape_parameter_B=params2_val,
-                                           shape_A=None, shape_B=None, min=min_val, max=max_val)
+            param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
+                                           shape_parameter_B=params2_val[i],
+                                           shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
 
-            fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgba(0,0,0,0)'), fill='tonexty')),
-            return fig
+            fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgb(0,176,246)'), fill='tonexty')),
+    return fig
+
+@app.callback(
+    Output({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
+    Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
+    prevent_initial_call=True
+)
+def setToggles(pdf_val):
+    ctx = dash.callback_context
+    id = ctx.triggered[0]['prop_id'].split('.')[0]
+    idx = ast.literal_eval(id)['index']
+
+    elem = [0, 'val_{}'.format(idx)]
+    check = elem in pdf_val
+    ret_vals = pdf_val
+    if check:
+        i = pdf_val.index(elem)
+        ret_vals[i] = elem
+
+        for j in range(len(ret_vals)):
+            if j != i:
+                ret_vals[j] = [0]
+
+        test = [[0] if j != i else elem for j,x in enumerate(pdf_val)]
+    return ret_vals
+
+@app.callback(
+    Output('q_val','disabled'),
+    Output('levels','disabled'),
+    Output('basis_growth_rule','disabled'),
+    [Input('drop_basis','value')],
+    prevent_initial_call=True
+)
+def BasisShow(value):
+    show=False
+    hide=True
+    if value is not None:
+        if value=='Sparse-grid':
+            return  hide,show,show
+        elif value=='Hyperbolic-basis':
+            return  show,hide,hide
+        else:
+            return hide,hide,hide
     else:
-        fig.add_trace(x=[],y=[])
-        return fig
+        return hide,hide,hide
+
+def Set_Basis(basis_val):
+    basis_set=Basis('{}'.format(basis_val))
+    return basis_set
+def Set_Polynomial(parameters,basis,method):
+    polynomial=eq.Poly(parameters=parameters,basis=basis,method='{}'.format(method))
+    return polynomial
+def Cardinality(polynomial):
+    return polynomial.basis.get_cardinality()
+
+@app.callback(
+    Output('op_box','value'),
+    Input('CC_button', 'n_clicks'),
+    [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
+     State('AP_button','n_clicks'),
+     State('drop_basis','value'),
+     State('basis_order','value'),
+     State('q_val','value'),
+     State('levels','value'),
+     State('solver_method','value')
+     ],
+    prevent_initial_call=True
+)
+def OutputCardinality(n_clicks,param_1,param_2,param_3,param_4,distribution,max_val,min_val,params_click,basis_select,basis_order,q_val,levels,solver_method):
+    if n_clicks!='0':
+        param_list=[]
+        distribution_list=[]
+        for i in range(params_click):
+            param, s_values, pdf = CreateParam(distribution=distribution[i], shape_parameter_A=param_1[i],
+                                                 shape_parameter_B=param_2[i],
+                                                    shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
+            param_list.append(param)
+            distribution_list.append(distribution[i])
+        mybasis=Set_Basis(basis_val=basis_select)
+        mypoly=Set_Polynomial(parameters=param_list,basis=mybasis,method=solver_method)
+        return mypoly.basis.get_cardinality()
+    else:
+        return 'Hi'
 
 
+    # elem = [0, 'val_{}'.format(idx)]
+    # check = elem in pdf_val
+    # if check:
+    #     i = pdf_val.index(elem)
+    #     if params4_val and params3_val is None:
+    #         param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
+    #                                            shape_parameter_B=params2_val[i],
+    #                                            shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
 
 
 if __name__=="__main__":
