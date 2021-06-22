@@ -126,15 +126,11 @@ dbc.Row([
     dbc.Col([
         dbc.Row([
     dbc.Col([
-        dbc.Input(bs_size="sm", id='basis_order', type="number", value='', placeholder='Order', className='ip_field',
-                  style={'width': '100px'}),
-    ], width=3),
-    dbc.Col([
-        dbc.Input(bs_size="sm", id='q_val', type="number", value='', placeholder='q',className='ip_field',
+        dbc.Input(bs_size="sm", id='q_val', type="number", value=np.nan, placeholder='q',className='ip_field',
                   disabled=True,style={'width': '100px'}),
     ], width=3),
     dbc.Col([
-        dbc.Input(bs_size="sm",id='levels',type='number',value='',placeholder='Level',className='ip_field',
+        dbc.Input(bs_size="sm",id='levels',type='number',value=np.nan,placeholder='Level',className='ip_field',
                   disabled=True,style={'width':'100px'})
     ], width=3),
             ], no_gutters=True,
@@ -149,8 +145,8 @@ justify='start'
         dbc.Col([
 dcc.Dropdown(
             options=[
-                {'label': 'Linear', 'value': 'Linear'},
-                {'label': 'Exponential', 'value': 'Exponential'},
+                {'label': 'Linear', 'value': 'linear'},
+                {'label': 'Exponential', 'value': 'exponential'},
             ],
             placeholder='Growth Rule',
             className="m-1",id='basis_growth_rule',
@@ -195,6 +191,7 @@ dcc.Dropdown(
         dbc.Col(html.Label('Cardinality'),width='auto'),
         dbc.Col(dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='', className='ip_field',
                   disabled=True,style={'width': '100px'}),width='auto'),
+       dcc.Store(id='ParamObjects'),
         dbc.Col(html.Div(children=[],id='test'),width='auto'),
     ],no_gutters=True,
     justify='start'),
@@ -294,11 +291,13 @@ def addInputs(n_clicks,children):
                             {'label': 'LogNormal', 'value': 'Lognormal'},
                             {'label': 'Beta', 'value': 'Beta'}
                         ],
-                        placeholder='Select a distribution'
-                        , className="m-1",id={
+                        placeholder='Select a distribution',
+                        value='Uniform',
+                        className="m-1",id={
                             'type':'drop-1',
                             'index':n_clicks
                         },
+                        clearable=False,
                         optionHeight=25,
                         style={
                             "width":"150px",
@@ -311,33 +310,44 @@ def addInputs(n_clicks,children):
                 dbc.Row([html.Label('INPUT STATISTICAL MOMENTS')],style={"color":"#000000","font-size":"0.9rem","font-family":"Raleway"}),
                 dbc.Row([
                     dbc.Col([
-                            dbc.Input(bs_size="sm",id={'type':'params','index':n_clicks}, type="number",value='',placeholder='',className='ip_field',style={'width': '100px'}),
+                            dbc.Input(bs_size="sm",id={'type':'params','index':n_clicks}, type="number",value=np.nan,placeholder='',
+                                        debounce=True,className='ip_field',style={'width': '100px'}),
                         ],width={}),
                     dbc.Col([
-                            dbc.Input(bs_size="sm",id={'type':'params_2','index':n_clicks}, type="number",value='',placeholder='...',className='ip_field',style={'width': '100px'}),
+                            dbc.Input(bs_size="sm",id={'type':'params_2','index':n_clicks}, type="number",value=np.nan,placeholder='...',
+                                      debounce=True,className='ip_field',style={'width': '100px'}),
                         ],width={}),
                     dbc.Col([
-                            dbc.Input(bs_size="sm",id={'type':'params_3','index':n_clicks}, type="number", value='', placeholder='...', className='ip_field',style={'width': '100px'}),
+                            dbc.Input(bs_size="sm",id={'type':'params_3','index':n_clicks}, type="number", value=np.nan, placeholder='...',
+                                      debounce=True,className='ip_field',style={'width': '100px'}),
                         ],width={}),
                     dbc.Col([
 
-                            dbc.Input(bs_size="sm",id={'type':'params_4','index':n_clicks}, type="number", value='', placeholder='...', className='ip_field',style={'width': '100px'}),
+                            dbc.Input(bs_size="sm",id={'type':'params_4','index':n_clicks}, type="number", value=np.nan, placeholder='...',
+                                      debounce=True,className='ip_field',style={'width': '100px'}),
                         ],width={}),
                 ]),
             ]),],lg=4, xs=3, width=4),
             dbc.Col([
-                dbc.Row([html.Label('INPUT MIN/MAX VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":'Raleway'}),
+                dbc.Row([html.Label('INPUT MIN/MAX/ORDER VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":'Raleway'}),
                 dbc.Row([
                     dbc.Col([
-                        dbc.Input(bs_size="sm",id={'type':'max_val','index':n_clicks}, type="number", value='', placeholder='Maximum value...', className='ip_field',style={'width': '100px'}),
+                        dbc.Input(bs_size="sm",id={'type':'max_val','index':n_clicks}, type="number", value=np.nan, placeholder='Maximum value...',
+                                  debounce=True,className='ip_field',style={'width': '100px'}),
                     ]),
                     dbc.Col([
-                        dbc.Input(bs_size="sm",id={'type':'min_val','index':n_clicks},type="number",value='',placeholder="Minimum value...", className='ip_field',style={'width': '100px'})
+                        dbc.Input(bs_size="sm",id={'type':'min_val','index':n_clicks},type="number",value=np.nan,placeholder="Minimum value...",
+                                  debounce=True,className='ip_field',style={'width': '100px'})
+                    ]),
+                    dbc.Col([
+                        dbc.Input(bs_size="sm", id={'type': 'order', 'index': n_clicks}, type="number", value=np.nan,
+                                  placeholder="Order",
+                                  debounce=True, className='ip_field', style={'width': '100px'})
                     ]),
                     dbc.Col([
                         dbc.Checklist(
                             options=[
-                                {"label": "Pdf_{}".format(n_clicks), "value": "val_{}".format(n_clicks)},
+                                {"label": " ", "value": "val_{}".format(n_clicks)},
                             ],
                             switch=True,
                             value=[0],
@@ -388,7 +398,7 @@ def UpdateInputField(value):
         return 'Mean...','Variance...','Shape A...','Shape B...',show,show,show
 
 @app.callback(
-    Output('test','children'),
+    Output('ParamObjects','data'),
     [
         Input('AP_button','n_clicks'),
         Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
@@ -398,12 +408,13 @@ def UpdateInputField(value):
         Input({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
-        Input('test','children')
+        Input({'type': 'order', 'index': dash.dependencies.ALL}, 'value'),
+
     ],
     prevent_intial_call=True
 )
 
-def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B,distribution,min,max,children):
+def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B,distribution,min,max,order):
     i=len(distribution)
     param_list=[]
     if i>0:
@@ -411,20 +422,19 @@ def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B
             if j==0:
 
                 param = eq.Parameter(distribution=distribution[0], shape_parameter_A=shape_parameter_A[0]
-                                     , shape_parameter_B=shape_parameter_B[0], lower=min[0], upper=max[0], order=3)
+                                     , shape_parameter_B=shape_parameter_B[0], lower=min[0], upper=max[0], order=order[0])
             else:
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
-                                 , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=3)
+                                 , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
             param_list.append(param)
-
     return jsonpickle.encode(param_list)
 
 
 
 
-def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B,min,max):
+def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B,min,max,order):
     param_obj=eq.Parameter(distribution=distribution,shape_parameter_A=shape_parameter_A,shape_parameter_B=shape_parameter_B,
-                           lower=min,upper=max,order=3)
+                           lower=min,upper=max,order=order)
     s_values,pdf=param_obj.get_pdf()
     return param_obj,s_values,pdf
 
@@ -438,10 +448,12 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
      State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
+     State({'type': 'order', 'index': dash.dependencies.ALL}, 'value'),
+
      ],
     prevent_initial_call=True
 )
-def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val):
+def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val,order):
     layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
               'autosize': True}
     fig=go.Figure(layout=layout)
@@ -486,13 +498,13 @@ def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max
         if params4_val and params3_val is None:
             param,s_values,pdf=CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
                                            shape_parameter_B=params2_val[i],shape_A=None, shape_B=None,
-                                           min=min_val[i], max=max_val[i])
+                                           min=min_val[i], max=max_val[i],order=order[i])
 
             fig.add_trace(go.Scatter(x=s_values,y=pdf,line = dict(color='rgb(0,176,246)'),fill='tonexty',mode='lines',name='NACA0012',line_width=4,line_color='black')),
         else:
             param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
                                            shape_parameter_B=params2_val[i],
-                                           shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
+                                           shape_A=None, shape_B=None, min=min_val[i], max=max_val[i],order=order)
 
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgb(0,176,246)'), fill='tonexty')),
     return fig
@@ -541,49 +553,39 @@ def BasisShow(value):
     else:
         return hide,hide,hide
 
-def Set_Basis(basis_val):
-    basis_set=Basis('{}'.format(basis_val))
+def Set_Basis(basis_val,level,q_val,growth_rule):
+    basis_set=Basis('{}'.format(basis_val),level=level,q=q_val,growth_rule=growth_rule)
     return basis_set
+
 def Set_Polynomial(parameters,basis,method):
-    polynomial=eq.Poly(parameters=parameters,basis=basis,method='{}'.format(method))
-    return polynomial
+    myPoly=eq.Poly(parameters=parameters,basis=basis,method=method)
+    return myPoly
 def Cardinality(polynomial):
     return polynomial.basis.get_cardinality()
 
 @app.callback(
     Output('op_box','value'),
+    [
     Input('CC_button', 'n_clicks'),
-    [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
+    Input('ParamObjects','data')],
+    [
      State('AP_button','n_clicks'),
      State('drop_basis','value'),
-     State('basis_order','value'),
      State('q_val','value'),
      State('levels','value'),
-     State('solver_method','value')
+     State('solver_method','value'),
+     State('basis_growth_rule','value')
      ],
     prevent_initial_call=True
 )
-def OutputCardinality(n_clicks,param_1,param_2,param_3,param_4,distribution,max_val,min_val,params_click,basis_select,basis_order,q_val,levels,solver_method):
-    if n_clicks!='0':
-        param_list=[]
-        distribution_list=[]
-        for i in range(params_click):
-            param, s_values, pdf = CreateParam(distribution=distribution[i], shape_parameter_A=param_1[i],
-                                                 shape_parameter_B=param_2[i],
-                                                    shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
-            param_list.append(param)
-            distribution_list.append(distribution[i])
-        mybasis=Set_Basis(basis_val=basis_select)
-        mypoly=Set_Polynomial(parameters=param_list,basis=mybasis,method=solver_method)
+def OutputCardinality(n_clicks,param_obj,params_click,basis_select,q_val,levels,solver_method,growth_rule):
+    if n_clicks!=0:
+        param_data=jsonpickle.decode(param_obj)
+        mybasis=Set_Basis(basis_val=basis_select,level=levels,q_val=q_val,growth_rule=growth_rule)
+        mypoly=Set_Polynomial(parameters=param_data,basis=mybasis,method=solver_method)
         return mypoly.basis.get_cardinality()
     else:
-        return 'Hi'
+        raise PreventUpdate
 
 
     # elem = [0, 'val_{}'.format(idx)]
@@ -594,6 +596,9 @@ def OutputCardinality(n_clicks,param_1,param_2,param_3,param_4,distribution,max_
     #         param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
     #                                            shape_parameter_B=params2_val[i],
     #                                            shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
+
+
+
 
 
 if __name__=="__main__":
