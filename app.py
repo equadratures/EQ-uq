@@ -18,6 +18,8 @@ import jsonpickle
 import ast
 from equadratures import *
 
+
+
 external_stylesheets=[dbc.themes.BOOTSTRAP]
 
 app=dash.Dash(__name__, external_stylesheets=external_stylesheets,meta_tags=[{'name': 'viewport',
@@ -395,7 +397,7 @@ def UpdateInputField(value):
     if value in LOWER_UPPER_DIST.keys():
         return 'Lower Value...','Upper Value...','','',show,hide,hide
     if value in LOW_UP_SHA_SHB.keys():
-        return 'Mean...','Variance...','Shape A...','Shape B...',show,show,show
+        return 'Shape A...','Shape B...','','',show,hide,hide
 
 @app.callback(
     Output('ParamObjects','data'),
@@ -413,19 +415,31 @@ def UpdateInputField(value):
     ],
     prevent_intial_call=True
 )
-
+# MEAN_VAR_DIST={
+#     "Gaussian":db.gaussian,
+#     "Uniform":db.uniform
+# }
+# SHAPE_PARAM_DIST={
+#     "Lognormal":db.lognormal,
+# }
+# LOWER_UPPER_DIST={
+#     "Chebyshev":db.chebyshev
+# }
+# LOW_UP_SHA_SHB={
+#     "Beta":db.beta
+# }
 def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B,distribution,min,max,order):
     i=len(distribution)
     param_list=[]
     if i>0:
         for j in range(i):
-            if j==0:
-
-                param = eq.Parameter(distribution=distribution[0], shape_parameter_A=shape_parameter_A[0]
-                                     , shape_parameter_B=shape_parameter_B[0], lower=min[0], upper=max[0], order=order[0])
-            else:
+            if distribution[j] in MEAN_VAR_DIST.keys():
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
-                                 , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
+                                     , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
+            elif distribution[j] in LOW_UP_SHA_SHB:
+                print(distribution[j],shape_parameter_A[j])
+                param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+                                 , shape_parameter_B=shape_parameter_B[j],lower=min[j], upper=max[j], order=order[j])
             param_list.append(param)
     return jsonpickle.encode(param_list)
 
@@ -554,10 +568,18 @@ def BasisShow(value):
         return hide,hide,hide
 
 def Set_Basis(basis_val,level,q_val,growth_rule):
+    print('')
+    print('{}'.format(basis_val))
+    print(type(level), level)
+    print(type(q_val), q_val)
+    print(type(growth_rule), growth_rule)
     basis_set=Basis('{}'.format(basis_val),level=level,q=q_val,growth_rule=growth_rule)
     return basis_set
 
 def Set_Polynomial(parameters,basis,method):
+    print(parameters)
+    print(basis)
+    print(method)
     myPoly=eq.Poly(parameters=parameters,basis=basis,method=method)
     return myPoly
 def Cardinality(polynomial):
