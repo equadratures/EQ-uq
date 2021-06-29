@@ -17,6 +17,8 @@ import json
 import jsonpickle
 import ast
 from equadratures import *
+import numexpr as ne
+import scipy as sp
 
 
 
@@ -43,6 +45,8 @@ TOP_CARD_STYLE={
 
 MEAN_VAR_DIST={
     "Gaussian":db.gaussian,
+}
+LOWER_UP_UNI_DIST={
     "Uniform":db.uniform
 }
 SHAPE_PARAM_DIST={
@@ -68,7 +72,8 @@ TOP_CARD=dbc.Card(
         dbc.Row([
             dbc.Col([html.Button('+ ADD PARAMETER',id='AP_button',n_clicks=0,className='ip_buttons')],
                     width={"size": 3}),
-            dbc.Col([dcc.Input(id="input1", type="text", placeholder="Input Function...",className='ip_field',style={'width': '150px'}),
+            dbc.Col([dcc.Input(id="input_func", type="text", placeholder="Input Function...",className='ip_field',debounce=True
+                               ,style={'width': '150px'}),
            ],width=4),
             ]),
 
@@ -84,7 +89,7 @@ TOP_CARD=dbc.Card(
     color="#FFFFFF",
     inverse=True,
     style={"width": "96%",
-           'height': '370px',
+           'height': '380px',
            "left":"2rem",
            "top":"5rem",
            },
@@ -109,18 +114,19 @@ dbc.Row([
     dbc.Col([
         dcc.Dropdown(
             options=[
-                {'label': 'Univariate', 'value': 'Univariate'},
-                {'label': 'Total-order', 'value': 'Total-order'},
-                {'label': 'Tensor-grid', 'value': 'Tensor-grid'},
-                {'label': 'Sparse-grid', 'value': 'Sparse-grid'},
-                {'label': 'Hyperbolic-basis', 'value': 'Hyperbolic-basis'},
-                {'label': 'Euclidean-degree', 'value': 'Euclidean-degree'}
+                {'label': 'Univariate', 'value': 'univariate'},
+                {'label': 'Total-order', 'value': 'total-order'},
+                {'label': 'Tensor-grid', 'value': 'tensor-grid'},
+                {'label': 'Sparse-grid', 'value': 'sparse-grid'},
+                {'label': 'Hyperbolic-basis', 'value': 'hyperbolic-basis'},
+                {'label': 'Euclidean-degree', 'value': 'euclidean-degree'}
             ],
             placeholder='Select Basis',
             className="m-1",id='drop_basis',
                         optionHeight=45,
                         style={
                             "width":"165px",
+
                         }
                     ),
 
@@ -162,43 +168,45 @@ dcc.Dropdown(
 
         ])
     ]),
-    dbc.Row([
-        dbc.Col([
-            dcc.Dropdown(
-            options=[
-                {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
-                {'label': 'Least-squares', 'value': 'least-squares'},
-                {'label': 'Minimum-norm', 'value': 'minimum-norm'},
-                {'label': 'Numerical-integration', 'value': 'numerical-integration'},
-                {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
-                {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
-                {'label': 'Huber', 'value': 'huber'},
-                {'label': 'Elastic-net', 'value': 'elastic-net'},
-                {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
-            ],
-            placeholder='Solver Method',
-            className="m-1",id='solver_method',
-                        optionHeight=45,
-                        style={
-                            "width":"200px",
-                        }
-                    ),
-        ])
-        ]),
+    # dbc.Row([
+    #     dbc.Col([
+    #         dcc.Dropdown(
+    #         options=[
+    #             {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
+    #             {'label': 'Least-squares', 'value': 'least-squares'},
+    #             {'label': 'Minimum-norm', 'value': 'minimum-norm'},
+    #             {'label': 'Numerical-integration', 'value': 'numerical-integration'},
+    #             {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
+    #             {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
+    #             {'label': 'Huber', 'value': 'huber'},
+    #             {'label': 'Elastic-net', 'value': 'elastic-net'},
+    #             {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
+    #         ],
+    #         placeholder='Solver Method',
+    #         className="m-1",id='solver_method',
+    #                     optionHeight=45,
+    #                     style={
+    #                         "width":"200px",
+    #                     }
+    #                 ),
+    #     ])
+    #     ]),
     html.Br(),
-    dbc.Row([html.Button('Cardinality Check', id='CC_button', n_clicks=0, className='ip_buttons')],
+    dbc.Row([
+        dbc.Col([html.Button('Cardinality Check', id='CC_button', n_clicks=0, className='ip_buttons')]),]
             ),
     html.Br(),
     dbc.Row([
         dbc.Col(html.Label('Cardinality'),width='auto'),
-        dbc.Col(dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='', className='ip_field',
-                  disabled=True,style={'width': '100px'}),width='auto'),
+        dbc.Col([dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='', className='ip_field',
+                  disabled=True,style={'width': '100px'})],width='auto'),
        dcc.Store(id='ParamObjects'),
-        dbc.Col(html.Div(children=[],id='test'),width='auto'),
+       dcc.Store(id='PolyObject'),
+       dbc.Col(dcc.Graph(id='plot_basis', style={'width': '500px','margin-top':'-80px' ,'display': 'inline-block', 'height':'300px',
+                                                  'margin-left':'20px'}),width=8),
+
     ],no_gutters=True,
-    justify='start'),
-
-
+    justify='start')
 ],style={"top": "5.5rem","margin-left":"0.5rem","width":"96%","height":"460px"})
 
 
@@ -207,9 +215,110 @@ dcc.Dropdown(
 
 
 COMPUTE_CARD=dbc.Card([
-    dbc.Button(['COMPUTE UNCERTAINTY'])
-],style={"width":'50%','display':'inline-block'})
+    dbc.CardBody([
+        dbc.Row([
+        dbc.Col([
+dbc.Row([
+        dbc.Col([
+            dcc.Dropdown(
+            options=[
+            #     {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
+                {'label': 'Least-squares', 'value': 'least-squares'},
+                # {'label': 'Minimum-norm', 'value': 'minimum-norm'},
+                {'label': 'Numerical-integration', 'value': 'numerical-integration'},
+                # {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
+                # {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
+                # {'label': 'Huber', 'value': 'huber'},
+                # {'label': 'Elastic-net', 'value': 'elastic-net'},
+                # {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
+            ],
+            placeholder='Solver Method',
+            value='numerical-integration',
+            className="m-1",id='solver_method',
+                        optionHeight=45,
+                        style={
+                            "width":"200px",
+                        }
+                    ),
+        ])
+        ]),
+dbc.Row([
+    dbc.Col([
+        html.Button(['Compute Uncertainty'], id='CU_button', n_clicks=0, className='ip_buttons')
+    ]),
+    dcc.Store(id='PolyFit'),
 
+        ]),
+            html.Br(),
+            html.Br(),
+dbc.Row([
+    dbc.FormGroup([
+        dbc.Row([
+    dbc.Col([
+        html.Label("MEAN")
+    ]),
+    dbc.Col([
+        html.Label("VARIANCE")
+    ]),
+    dbc.Col([
+        html.Label("R2 Score")
+    ])
+            ]),
+        dbc.Row([
+            dbc.Col([
+                dbc.Input(bs_size="sm", id='mean', type='number', value=np.nan, placeholder='Mean...',
+                          className='ip_field',
+                          disabled=True, style={'width': '100px'})
+            ]),
+            dbc.Col([
+                dbc.Input(bs_size="sm", id='variance', type='number', value=np.nan, placeholder='Variance..,',
+                          className='ip_field',
+                          disabled=True, style={'width': '100px'})
+            ]),
+            dbc.Col([
+                dbc.Input(bs_size="sm", id='r2_score', type='number', value=np.nan, placeholder='R2 Score..,',
+                          className='ip_field',
+                          disabled=True, style={'width': '100px'})
+            ])
+        ])
+        ])
+]),
+            html.Br(),
+            dbc.Row([
+                dbc.FormGroup([
+                dbc.Row([
+                    dbc.Col(html.Label('SENSITIVITY ANALYSIS'))
+                ]),
+                    html.Br(),
+                dbc.Row([
+                    dbc.Col([dcc.Slider(id='sobol_order',
+                                   min=1,
+                                   max=3,
+                                   step=1,
+                                   value=1,
+                                   marks={
+                                       1: {'label': '1'},
+                                       2: {'label': '2'},
+                                       3:{'label':'3'}
+                                   },
+                                   )
+                        ]),]),
+
+                dbc.Row([
+                    dbc.Col([
+                        html.Div(id='sobol_values')
+                    ])
+                ])
+
+            ])
+            ])
+        ],width=5),
+    dbc.Col([
+        dcc.Graph(id = 'plot_poly_3D', style={'width':'600px'})
+    ],width=6)
+])
+    ])
+],style={"top": "5.5rem","margin-left":"2.8rem","width":"94.5%","height":"460px"})
 
 
 
@@ -253,7 +362,10 @@ dbc.Row([
 ],
 
     no_gutters=False
-)
+),
+dbc.Row([
+    COMPUTE_CARD
+])
 ])
 
 
@@ -300,7 +412,7 @@ def addInputs(n_clicks,children):
                             'index':n_clicks
                         },
                         clearable=False,
-                        optionHeight=25,
+                        optionHeight=20,
                         style={
                             "width":"150px",
                         }
@@ -314,38 +426,29 @@ def addInputs(n_clicks,children):
                     dbc.Col([
                             dbc.Input(bs_size="sm",id={'type':'params','index':n_clicks}, type="number",value=np.nan,placeholder='',
                                         debounce=True,className='ip_field',style={'width': '100px'}),
-                        ],width={}),
+                        ],width=3),
                     dbc.Col([
                             dbc.Input(bs_size="sm",id={'type':'params_2','index':n_clicks}, type="number",value=np.nan,placeholder='...',
                                       debounce=True,className='ip_field',style={'width': '100px'}),
-                        ],width={}),
-                    dbc.Col([
-                            dbc.Input(bs_size="sm",id={'type':'params_3','index':n_clicks}, type="number", value=np.nan, placeholder='...',
-                                      debounce=True,className='ip_field',style={'width': '100px'}),
-                        ],width={}),
-                    dbc.Col([
-
-                            dbc.Input(bs_size="sm",id={'type':'params_4','index':n_clicks}, type="number", value=np.nan, placeholder='...',
-                                      debounce=True,className='ip_field',style={'width': '100px'}),
-                        ],width={}),
+                        ],width=3),
                 ]),
-            ]),],lg=4, xs=3, width=4),
+            ]),],lg=4, xs=3, width=3),
             dbc.Col([
                 dbc.Row([html.Label('INPUT MIN/MAX/ORDER VALUE')],style={"color":"#000000","font-size":"0.9rem","font-family":'Raleway'}),
                 dbc.Row([
                     dbc.Col([
-                        dbc.Input(bs_size="sm",id={'type':'max_val','index':n_clicks}, type="number", value=np.nan, placeholder='Maximum value...',
+                        dbc.Input(bs_size="sm",id={'type':'min_val','index':n_clicks}, type="number", value=np.nan, placeholder='Minimum value...',
                                   debounce=True,className='ip_field',style={'width': '100px'}),
-                    ]),
+                    ],width='auto'),
                     dbc.Col([
-                        dbc.Input(bs_size="sm",id={'type':'min_val','index':n_clicks},type="number",value=np.nan,placeholder="Minimum value...",
+                        dbc.Input(bs_size="sm",id={'type':'max_val','index':n_clicks},type="number",value=np.nan,placeholder="Maximum value...",
                                   debounce=True,className='ip_field',style={'width': '100px'})
-                    ]),
+                    ],width='auto'),
                     dbc.Col([
                         dbc.Input(bs_size="sm", id={'type': 'order', 'index': n_clicks}, type="number", value=np.nan,
                                   placeholder="Order",
                                   debounce=True, className='ip_field', style={'width': '100px'})
-                    ]),
+                    ],width='auto'),
                     dbc.Col([
                         dbc.Checklist(
                             options=[
@@ -358,7 +461,10 @@ def addInputs(n_clicks,children):
                                 "index": n_clicks
                             }
                         )
-                    ])
+                    ],width='auto'),
+                    # dbc.Col([
+                    #     html.Label("X{}".format(n_clicks),style={'color':'black'})
+                    # ],width=1)
 
                 ], justify='start',no_gutters=True)
             ], lg=3, xs=2, width=3),
@@ -377,11 +483,12 @@ def addInputs(n_clicks,children):
 @app.callback(
     Output({'type': 'params', 'index': dash.dependencies.MATCH},'placeholder'),
     Output({'type': 'params_2', 'index': dash.dependencies.MATCH},'placeholder'),
-    Output({'type': 'params_3', 'index': dash.dependencies.MATCH},'placeholder'),
-    Output({'type': 'params_4', 'index': dash.dependencies.MATCH},'placeholder'),
+    Output({'type': 'min_val', 'index': dash.dependencies.MATCH},'placeholder'),
+    Output({'type': 'max_val', 'index': dash.dependencies.MATCH},'placeholder'),
+    Output({'type': 'params', 'index': dash.dependencies.MATCH},'disabled'),
     Output({'type': 'params_2', 'index': dash.dependencies.MATCH},'disabled'),
-    Output({'type': 'params_3', 'index': dash.dependencies.MATCH},'disabled'),
-    Output({'type': 'params_4', 'index': dash.dependencies.MATCH},'disabled'),
+    Output({'type': 'min_val', 'index': dash.dependencies.MATCH},'disabled'),
+    Output({'type': 'max_val', 'index': dash.dependencies.MATCH},'disabled'),
     [Input({'type':'drop-1','index':dash.dependencies.MATCH},'value')],
     prevent_initial_callback=True,
 )
@@ -391,13 +498,15 @@ def UpdateInputField(value):
     if value is None:
         return ['Statistical Measures based on Distribution','...','...','...',hide,hide,hide]
     if value in MEAN_VAR_DIST.keys():
-        return 'Mean...','Variance...',' ',' ',show,hide,hide
+        return 'Mean...','Variance...',' ',' ',show,show,hide,hide
+    if value in LOWER_UP_UNI_DIST.keys():
+        return '','','Min Value...','Max Value...',hide,hide,show,show
     if value in SHAPE_PARAM_DIST.keys():
-        return 'Shape...',' ','','',hide,hide,hide
+        return 'Shape...',' ','','',show,hide,hide,hide
     if value in LOWER_UPPER_DIST.keys():
-        return 'Lower Value...','Upper Value...','','',show,hide,hide
+        return 'Lower Value...','Upper Value...','Min Value...','Max Value...',show,show,show,show
     if value in LOW_UP_SHA_SHB.keys():
-        return 'Shape A...','Shape B...','','',show,hide,hide
+        return 'Shape A...','Shape B...','Min Value...','Max Value...',show,show,show,show
 
 @app.callback(
     Output('ParamObjects','data'),
@@ -405,8 +514,6 @@ def UpdateInputField(value):
         Input('AP_button','n_clicks'),
         Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
-        Input({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
-        Input({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
@@ -415,20 +522,8 @@ def UpdateInputField(value):
     ],
     prevent_intial_call=True
 )
-# MEAN_VAR_DIST={
-#     "Gaussian":db.gaussian,
-#     "Uniform":db.uniform
-# }
-# SHAPE_PARAM_DIST={
-#     "Lognormal":db.lognormal,
-# }
-# LOWER_UPPER_DIST={
-#     "Chebyshev":db.chebyshev
-# }
-# LOW_UP_SHA_SHB={
-#     "Beta":db.beta
-# }
-def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B,distribution,min,max,order):
+
+def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,distribution,max,min,order):
     i=len(distribution)
     param_list=[]
     if i>0:
@@ -436,17 +531,28 @@ def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,shape_A,shape_B
             if distribution[j] in MEAN_VAR_DIST.keys():
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                      , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
-            elif distribution[j] in LOW_UP_SHA_SHB:
+            elif distribution[j] in LOW_UP_SHA_SHB.keys():
                 print(distribution[j],shape_parameter_A[j])
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                  , shape_parameter_B=shape_parameter_B[j],lower=min[j], upper=max[j], order=order[j])
+            elif distribution[j] in SHAPE_PARAM_DIST.keys():
+                print(distribution[j],shape_parameter_A[j])
+                param = eq.Parameter(distribution=distribution[j],shape_parameter_A=shape_parameter_A[j],order=order[j])
+            elif distribution[j] in LOWER_UP_UNI_DIST.keys():
+                param= eq.Parameter(distribution=distribution[j],lower=min[j],upper=max[j],order=order[j])
+            elif distribution[j] in LOWER_UPPER_DIST.keys():
+                param=eq.Parameter(distribution=distribution[j],shape_parameter_A=shape_parameter_A[j],
+                                   shape_parameter_B=shape_parameter_B[j],lower=min[j],upper=max[j],order=order[j])
             param_list.append(param)
     return jsonpickle.encode(param_list)
 
 
+LOWER_UPPER_DIST={
+    "Chebyshev":db.chebyshev
+}
 
 
-def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B,min,max,order):
+def CreateParam(distribution,shape_parameter_A,shape_parameter_B,min,max,order):
     param_obj=eq.Parameter(distribution=distribution,shape_parameter_A=shape_parameter_A,shape_parameter_B=shape_parameter_B,
                            lower=min,upper=max,order=order)
     s_values,pdf=param_obj.get_pdf()
@@ -457,8 +563,6 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
     Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
     [State({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'params_3', 'index': dash.dependencies.ALL}, 'value'),
-     State({'type': 'params_4', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'drop-1', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
@@ -467,7 +571,7 @@ def CreateParam(distribution,shape_parameter_A,shape_parameter_B,shape_A,shape_B
      ],
     prevent_initial_call=True
 )
-def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max_val,min_val,order):
+def PlotPdf(pdf_val,param1_val,params2_val,drop1_val,max_val,min_val,order):
     layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
               'autosize': True}
     fig=go.Figure(layout=layout)
@@ -509,16 +613,15 @@ def PlotPdf(pdf_val,param1_val,params2_val,params3_val,params4_val,drop1_val,max
     check = elem in pdf_val
     if check:
         i = pdf_val.index(elem)
-        if params4_val and params3_val is None:
+        if param1_val and params2_val is None:
             param,s_values,pdf=CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
-                                           shape_parameter_B=params2_val[i],shape_A=None, shape_B=None,
+                                           shape_parameter_B=params2_val[i],
                                            min=min_val[i], max=max_val[i],order=order[i])
 
             fig.add_trace(go.Scatter(x=s_values,y=pdf,line = dict(color='rgb(0,176,246)'),fill='tonexty',mode='lines',name='NACA0012',line_width=4,line_color='black')),
         else:
             param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
-                                           shape_parameter_B=params2_val[i],
-                                           shape_A=None, shape_B=None, min=min_val[i], max=max_val[i],order=order)
+                                           shape_parameter_B=params2_val[i],min=min_val[i], max=max_val[i],order=order[i])
 
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgb(0,176,246)'), fill='tonexty')),
     return fig
@@ -558,35 +661,28 @@ def BasisShow(value):
     show=False
     hide=True
     if value is not None:
-        if value=='Sparse-grid':
+        if value=='sparse-grid':
             return  hide,show,show
-        elif value=='Hyperbolic-basis':
+        elif value=='hyperbolic-basis':
             return  show,hide,hide
         else:
             return hide,hide,hide
     else:
         return hide,hide,hide
 
-def Set_Basis(basis_val,level,q_val,growth_rule):
-    print('')
-    print('{}'.format(basis_val))
-    print(type(level), level)
-    print(type(q_val), q_val)
-    print(type(growth_rule), growth_rule)
-    basis_set=Basis('{}'.format(basis_val),level=level,q=q_val,growth_rule=growth_rule)
+def Set_Basis(basis_val,order,level,q_val,growth_rule):
+
+    basis_set=Basis('{}'.format(basis_val),orders=order,level=level,q=q_val,growth_rule=growth_rule)
     return basis_set
 
 def Set_Polynomial(parameters,basis,method):
-    print(parameters)
-    print(basis)
-    print(method)
     myPoly=eq.Poly(parameters=parameters,basis=basis,method=method)
     return myPoly
-def Cardinality(polynomial):
-    return polynomial.basis.get_cardinality()
+
 
 @app.callback(
-    Output('op_box','value'),
+    [Output('op_box','value'),
+    Output('PolyObject','data')],
     [
     Input('CC_button', 'n_clicks'),
     Input('ParamObjects','data')],
@@ -595,33 +691,177 @@ def Cardinality(polynomial):
      State('drop_basis','value'),
      State('q_val','value'),
      State('levels','value'),
-     State('solver_method','value'),
-     State('basis_growth_rule','value')
+     State('basis_growth_rule','value'),
+     State('solver_method','value')
      ],
     prevent_initial_call=True
 )
-def OutputCardinality(n_clicks,param_obj,params_click,basis_select,q_val,levels,solver_method,growth_rule):
+def OutputCardinality(n_clicks,param_obj,params_click,basis_select,q_val,levels,growth_rule,solver_method):
     if n_clicks!=0:
         param_data=jsonpickle.decode(param_obj)
-        mybasis=Set_Basis(basis_val=basis_select,level=levels,q_val=q_val,growth_rule=growth_rule)
-        mypoly=Set_Polynomial(parameters=param_data,basis=mybasis,method=solver_method)
-        return mypoly.basis.get_cardinality()
+        basis_ord=[]
+        for elem in param_data:
+            basis_ord.append(elem.order)
+        mybasis=Set_Basis(basis_val=basis_select,order=basis_ord,level=levels,q_val=q_val,growth_rule=growth_rule)
+        # print(mybasis.basis_type)
+        # print(solver_method)
+        myPoly=eq.Poly(parameters=param_data,basis=mybasis,method=solver_method)
+
+        return [mybasis.get_cardinality(),jsonpickle.encode(myPoly)]
     else:
         raise PreventUpdate
 
 
-    # elem = [0, 'val_{}'.format(idx)]
-    # check = elem in pdf_val
-    # if check:
-    #     i = pdf_val.index(elem)
-    #     if params4_val and params3_val is None:
-    #         param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
-    #                                            shape_parameter_B=params2_val[i],
-    #                                            shape_A=None, shape_B=None, min=min_val[i], max=max_val[i])
+# @app.callback(
+#     Output('test','children'),
+#     [Input('ParamObjects','data')],
+#     [State('drop_basis','value'),
+#      State('q_val','value'),
+#      State('levels','value'),
+#      State('basis_growth_rule','value'),
+#      State('solver_method','value')],
+#     prevent_initial_call=True
+# )
+# def PolyUpload(param_data,drop_basis,q_val,levels,basis_growth_rule,solver_method):
+#     print(drop_basis)
+#     if param_data and drop_basis is not None:
+#         param_data = jsonpickle.decode(param_data)
+#         basis_ord = []
+#         for elem in param_data:
+#             basis_ord.append(elem.order)
+#         mybasis = Set_Basis(basis_val=drop_basis, order=basis_ord, level=levels, q_val=q_val, growth_rule=basis_growth_rule)
+#         myPoly=eq.Poly(parameters=param_data,basis=mybasis,method=solver_method)
+#         return jsonpickle.encode(myPoly)
+#     else:
+#         return None
+
+@app.callback(
+    Output('plot_basis','figure'),
+    Input('PolyObject','data'),
+    Input('AP_button','n_clicks')
+)
+def PlotBasis(poly,n_clicks):
+    if poly is not None:
+        myPoly=jsonpickle.decode(poly)
+        DOE=myPoly.get_points()
+        if n_clicks==1:
+            fig = px.scatter(DOE)
+            return fig
+        elif n_clicks==2:
+            fig = px.scatter(x=DOE[:,0], y=DOE[:,1])
+            return fig
+        # fig = px.scatter(x=DOE[:,0], y=DOE[:,1])
+
+    else:
+        raise PreventUpdate
+
+def TrueVal(function):
+    True_mean=sp.integrate.quad(function)
+
+@app.callback(
+    [Output('PolyFit','data'),
+    Output('plot_poly_3D', 'figure'),
+    Output('mean','value'),
+    Output('variance','value'),
+    Output('sobol_values','children')],
+    [
+     Input('PolyObject','data'),
+     Input('input_func','value'),
+     Input('CU_button','n_clicks'),
+     Input('AP_button','n_clicks'),
+     Input('sobol_order','value')]
+)
+def SetModel(poly,expr,compute_button,n_clicks,sobol_order):
+    if compute_button!=0:
+        myPoly = jsonpickle.decode(poly)
+        if n_clicks==1:
+            def f(op):
+                x1=op[0]
+                return ne.evaluate(expr)
+        elif n_clicks==2:
+            def f(op):
+                x1=op[0]
+                x2=op[1]
+                return ne.evaluate(expr)
+        elif n_clicks==3:
+            def f(op):
+                x1=op[0]
+                x2=op[1]
+                x3=op[2]
+                return ne.evaluate(expr)
+        elif n_clicks==4:
+            def f(op):
+                x1=op[0]
+                x2=op[1]
+                x3=op[2]
+                x4=op[3]
+                return ne.evaluate(expr)
+        elif n_clicks==5:
+            def f(op):
+                x1=op[0]
+                x2=op[1]
+                x3=op[2]
+                x4=op[3]
+                x5=op[4]
+                return ne.evaluate(expr)
+
+        myPoly.set_model(f)
+        values=myPoly.get_mean_and_variance()
+        mean=values[0]
+        variance=values[1]
+        myPolyFit=myPoly.get_polyfit
+        DOE = myPoly.get_points()
+        N = 20
+        s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
+        s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
+        [S1, S2] = np.meshgrid(s1_samples, s2_samples)
+        S1_vec = np.reshape(S1, (N * N, 1))
+        S2_vec = np.reshape(S2, (N * N, 1))
+        samples = np.hstack([S1_vec, S2_vec])
+        PolyDiscreet = myPolyFit(samples)
+        PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
+        fig = go.Figure()
+        fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet, colorbar_x=-0.07))
+
+        vals=myPoly.get_sobol_indices(order=sobol_order)
+        return jsonpickle.encode(myPolyFit),fig,mean,variance,'{}'.format(vals)   ###
+    else:
+        raise PreventUpdate
 
 
 
 
+
+
+
+
+# @app.callback(
+#     Output('plot_poly_3D','figure'),
+#     Input('PolyFit','data'),
+#     Input('PolyObject','data'),
+#     Input('CU_button','n_clicks')
+# )
+# def Plot_Poly_fit(Polyfit,Polyobject,n_clicks):
+#     if n_clicks >0:
+#         myPoly=jsonpickle.decode(Polyobject)
+#         mypolyfit=jsonpickle.decode(Polyfit)
+#         DOE=myPoly.get_points()
+#         N = 20
+#         s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
+#         print(s1_samples)
+#         s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
+#         [S1, S2] = np.meshgrid(s1_samples, s2_samples)
+#         S1_vec = np.reshape(S1, (N * N, 1))
+#         S2_vec = np.reshape(S2, (N * N, 1))
+#         samples = np.hstack([S1_vec, S2_vec])
+#         print(type(mypolyfit))
+#         PolyDiscreet = mypolyfit( samples )
+#         PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
+#         fig=go.Figure()
+#         fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet, colorbar_x=-0.07), 1, 1)
+#         return fig
+#     else:
+#         raise PreventUpdate
 
 if __name__=="__main__":
     app.run_server(debug=True)
