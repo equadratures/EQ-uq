@@ -1,5 +1,8 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100;300;400;700&display=swap');
+
 body{
-  background-color: 	#FFFFFF;
+  background-color: #EBEFF2;
+  font-family:"Raleway";
 }
 
 .ip_buttons{
@@ -10,11 +13,26 @@ body{
   background-color: #FFFFFF;
   display: inline-block;
   font-size: 12px;
-  font-family: "Lucida Console", Monaco, monospace;
+  font-family: "Raleway";
   color:#000000;
 }
 
+.navbar{
+        -webkit-box-shadow: 0 4px 6px -6px #222;
+        -moz-box-shadow: 0 4px 6px -6px #222;
+        box-shadow: 0 4px 6px -6px #222;
+}
 
+
+.navbar-light .nav-item.active .nav-link,
+.NAV-light .nav-item:focus .nav-link,
+.NAV-light .nav-item:hover .nav-link {
+        color: primary;
+}
+
+.navbar-light .nav-item .nav-link{
+        font-size: medium;
+}
 
 .rc-slider-track {
   background-color: #4663ac;
@@ -46,6 +64,16 @@ font-size: 20px;
     transition: ease-out 0.4s;
     color: #000000;
 }
+
+.m-1{
+  color:black;
+  background-color: transparent;
+}
+.m-1 .VirtualizedSelectFocusedOption {
+}
+
+
+
 .AT-button:hover{
   box-shadow: inset 400px 0 0 0 #800080;
 }
@@ -65,12 +93,13 @@ font-size: 20px;
 .link:active{
   border-bottom: 3px solid red;
 }
+
 .top_card{
   overflow-y: scroll;
 }
 
 .top_card::-webkit-scrollbar {
-  width: 0.4em;
+  width: 0.5em;
 }
 
 .top_card::-webkit-scrollbar-track {
