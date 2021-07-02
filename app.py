@@ -74,6 +74,11 @@ TOP_CARD=dbc.Card(
                     width={"size": 3}),
             dbc.Col([dcc.Input(id="input_func", type="text", placeholder="Input Function...",className='ip_field',debounce=True
                                ,style={'width': '150px'}),
+            dbc.Tooltip(
+                "The variables for input function should be of form x1,x2...",
+                target="input_func",
+                placement='right'
+                    ),
            ],width=4),
             ]),
 
@@ -96,13 +101,6 @@ TOP_CARD=dbc.Card(
 )
 
 
-
-# TOP_TABLE=dbc.Container(
-#     fig=go.Figure(data=[go.Table(header=dict(values=['Parameter','Distribution','Mean','Variance','Max','Min']),
-#            TOP_CARD=dbc.Card(
-#     [
-#
-# )
 
 PDF_GRAPH= dbc.Card([
     dcc.Graph(id='plot_pdf', style={'width': '100%', 'display': 'inline-block', 'margin-top': '10px'})
@@ -168,29 +166,6 @@ dcc.Dropdown(
 
         ])
     ]),
-    # dbc.Row([
-    #     dbc.Col([
-    #         dcc.Dropdown(
-    #         options=[
-    #             {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
-    #             {'label': 'Least-squares', 'value': 'least-squares'},
-    #             {'label': 'Minimum-norm', 'value': 'minimum-norm'},
-    #             {'label': 'Numerical-integration', 'value': 'numerical-integration'},
-    #             {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
-    #             {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
-    #             {'label': 'Huber', 'value': 'huber'},
-    #             {'label': 'Elastic-net', 'value': 'elastic-net'},
-    #             {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
-    #         ],
-    #         placeholder='Solver Method',
-    #         className="m-1",id='solver_method',
-    #                     optionHeight=45,
-    #                     style={
-    #                         "width":"200px",
-    #                     }
-    #                 ),
-    #     ])
-    #     ]),
     html.Br(),
     dbc.Row([
         dbc.Col([html.Button('Cardinality Check', id='CC_button', n_clicks=0, className='ip_buttons')]),]
@@ -202,15 +177,12 @@ dcc.Dropdown(
                   disabled=True,style={'width': '100px'})],width='auto'),
        dcc.Store(id='ParamObjects'),
        dcc.Store(id='PolyObject'),
-       dbc.Col(dcc.Graph(id='plot_basis', style={'width': '500px','margin-top':'-80px' ,'display': 'inline-block', 'height':'300px',
+       dbc.Col(dcc.Graph(id='plot_basis',style={'display':'inline-block','width': '500px','margin-top':'-80px' ,'height':'300px',
                                                   'margin-left':'20px'}),width=8),
 
     ],no_gutters=True,
     justify='start')
 ],style={"top": "5.5rem","margin-left":"0.5rem","width":"96%","height":"460px"})
-
-
-
 
 
 
@@ -222,15 +194,8 @@ dbc.Row([
         dbc.Col([
             dcc.Dropdown(
             options=[
-            #     {'label': 'Compressed-sensing', 'value': 'compressed-sensing'},
                 {'label': 'Least-squares', 'value': 'least-squares'},
-                # {'label': 'Minimum-norm', 'value': 'minimum-norm'},
                 {'label': 'Numerical-integration', 'value': 'numerical-integration'},
-                # {'label': 'Least-squares-with-gradients', 'value': 'least-squares-with-gradients'},
-                # {'label': 'Least-absolute-residual', 'value': 'least-absolute-residual'},
-                # {'label': 'Huber', 'value': 'huber'},
-                # {'label': 'Elastic-net', 'value': 'elastic-net'},
-                # {'label': 'Relevance-vector-machine', 'value': 'relevance-vector-machine'},
             ],
             placeholder='Solver Method',
             value='numerical-integration',
@@ -246,7 +211,8 @@ dbc.Row([
     dbc.Col([
         html.Button(['Compute Uncertainty'], id='CU_button', n_clicks=0, className='ip_buttons')
     ]),
-    dcc.Store(id='PolyFit'),
+    dcc.Store(id='ModelSet'),
+    dcc.Store(id='True_vals')
 
         ]),
             html.Br(),
@@ -291,17 +257,21 @@ dbc.Row([
                 ]),
                     html.Br(),
                 dbc.Row([
-                    dbc.Col([dcc.Slider(id='sobol_order',
-                                   min=1,
-                                   max=3,
-                                   step=1,
-                                   value=1,
-                                   marks={
-                                       1: {'label': '1'},
-                                       2: {'label': '2'},
-                                       3:{'label':'3'}
-                                   },
-                                   )
+                    dbc.Col([
+                        dcc.Dropdown(
+                            options=[
+                                {'label': 'Order 1', 'value': 1},
+                                {'label': 'Order 2', 'value': 2},
+                                {'label': 'Order 3', 'value': 3},
+
+                            ],
+                            placeholder='Interaction Order',
+                            className="m-1", id='sobol_order',
+                            optionHeight=45,
+                            style={
+                                "width": "200px",
+                            }
+                        ),
                         ]),]),
 
                 dbc.Row([
@@ -532,11 +502,9 @@ def ParamListUpload(n_clicks,shape_parameter_A,shape_parameter_B,distribution,ma
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                      , shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
             elif distribution[j] in LOW_UP_SHA_SHB.keys():
-                print(distribution[j],shape_parameter_A[j])
                 param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                  , shape_parameter_B=shape_parameter_B[j],lower=min[j], upper=max[j], order=order[j])
             elif distribution[j] in SHAPE_PARAM_DIST.keys():
-                print(distribution[j],shape_parameter_A[j])
                 param = eq.Parameter(distribution=distribution[j],shape_parameter_A=shape_parameter_A[j],order=order[j])
             elif distribution[j] in LOWER_UP_UNI_DIST.keys():
                 param= eq.Parameter(distribution=distribution[j],lower=min[j],upper=max[j],order=order[j])
@@ -712,58 +680,52 @@ def OutputCardinality(n_clicks,param_obj,params_click,basis_select,q_val,levels,
         raise PreventUpdate
 
 
-# @app.callback(
-#     Output('test','children'),
-#     [Input('ParamObjects','data')],
-#     [State('drop_basis','value'),
-#      State('q_val','value'),
-#      State('levels','value'),
-#      State('basis_growth_rule','value'),
-#      State('solver_method','value')],
-#     prevent_initial_call=True
-# )
-# def PolyUpload(param_data,drop_basis,q_val,levels,basis_growth_rule,solver_method):
-#     print(drop_basis)
-#     if param_data and drop_basis is not None:
-#         param_data = jsonpickle.decode(param_data)
-#         basis_ord = []
-#         for elem in param_data:
-#             basis_ord.append(elem.order)
-#         mybasis = Set_Basis(basis_val=drop_basis, order=basis_ord, level=levels, q_val=q_val, growth_rule=basis_growth_rule)
-#         myPoly=eq.Poly(parameters=param_data,basis=mybasis,method=solver_method)
-#         return jsonpickle.encode(myPoly)
-#     else:
-#         return None
+@app.callback(
+    Output('solver_method','value'),
+    [Input('drop_basis','value')],
+    prevent_initial_call=True
+)
+def SetMethod(drop_basis):
+    if drop_basis=='total-order':
+        return 'least-squares'
+    else:
+        return 'numerical-integration'
+
+
+
+
 
 @app.callback(
     Output('plot_basis','figure'),
+    [
     Input('PolyObject','data'),
-    Input('AP_button','n_clicks')
+    Input('AP_button','n_clicks'),
+    ]
 )
 def PlotBasis(poly,n_clicks):
     if poly is not None:
         myPoly=jsonpickle.decode(poly)
         DOE=myPoly.get_points()
         if n_clicks==1:
-            fig = px.scatter(DOE)
+            fig=px.scatter(DOE)
             return fig
         elif n_clicks==2:
-            fig = px.scatter(x=DOE[:,0], y=DOE[:,1])
+            fig=px.scatter(x=DOE[:,0], y=DOE[:,1])
             return fig
         # fig = px.scatter(x=DOE[:,0], y=DOE[:,1])
 
     else:
         raise PreventUpdate
 
-def TrueVal(function):
-    True_mean=sp.integrate.quad(function)
 
 @app.callback(
-    [Output('PolyFit','data'),
-    Output('plot_poly_3D', 'figure'),
+    [Output('ModelSet','data'),
     Output('mean','value'),
     Output('variance','value'),
-    Output('sobol_values','children')],
+    # Output('sobol_values','children')
+    Output('r2_score','value'),
+    Output('True_vals','data')
+     ],
     [
      Input('PolyObject','data'),
      Input('input_func','value'),
@@ -774,42 +736,124 @@ def TrueVal(function):
 def SetModel(poly,expr,compute_button,n_clicks,sobol_order):
     if compute_button!=0:
         myPoly = jsonpickle.decode(poly)
-        if n_clicks==1:
-            def f(op):
-                x1=op[0]
-                return ne.evaluate(expr)
-        elif n_clicks==2:
-            def f(op):
-                x1=op[0]
-                x2=op[1]
-                return ne.evaluate(expr)
-        elif n_clicks==3:
-            def f(op):
-                x1=op[0]
-                x2=op[1]
-                x3=op[2]
-                return ne.evaluate(expr)
-        elif n_clicks==4:
-            def f(op):
-                x1=op[0]
-                x2=op[1]
-                x3=op[2]
-                x4=op[3]
-                return ne.evaluate(expr)
-        elif n_clicks==5:
-            def f(op):
-                x1=op[0]
-                x2=op[1]
-                x3=op[2]
-                x4=op[3]
-                x5=op[4]
-                return ne.evaluate(expr)
+        x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, n_clicks + 1)]
+        def f(op):
+            for i in range(n_clicks):
+                exec(x[i])
+            return ne.evaluate(expr)
 
         myPoly.set_model(f)
         values=myPoly.get_mean_and_variance()
         mean=values[0]
         variance=values[1]
-        myPolyFit=myPoly.get_polyfit
+        sobol_vals = myPoly.get_sobol_indices(order=sobol_order)
+        print(myPoly)
+        print(sobol_vals)
+        DOE=myPoly.get_points()
+        y_true = []
+        for i in range(len(DOE)):
+            y_true.append(f(DOE[i]))
+        y_true = np.array(y_true)
+        y_true=y_true.reshape(-1,1)
+        y_pred=myPoly.get_polyfit(DOE).squeeze()
+        y_pred=y_pred.reshape(-1,1)
+        r2_score=eq.datasets.score(y_true,y_pred,metric='r2')
+        return jsonpickle.encode(myPoly),mean,variance,r2_score,jsonpickle.encode(y_true)  ###
+    else:
+        raise PreventUpdate
+
+@app.callback(
+    Output('sobol_values','children'),
+    [
+    Input('sobol_order','value'),
+    Input('ModelSet','data'),
+    Input('CU_button','n_clicks')
+    ],
+    prevent_initial_call=True
+)
+def SobolTest(order,Model,n_clicks):
+    if n_clicks>0 and order is not None:
+        myPoly=jsonpickle.decode(Model)
+        vals=myPoly.get_sobol_indices(order=order)
+
+        print('vals',vals)
+        print('order',type(order))
+        return '{}'.format(vals)
+    else:
+        raise PreventUpdate
+
+# @app.callback(
+#     Output('sobol_values','children'),
+#     [Input('sobol_order','value'),
+#      Input('AP_button','n_clicks'),
+#      State('sobol_values','children')]
+# )
+# def SobolIndices(sobol_order,n_clicks,children):
+#     if sobol_order==1:
+#         add_card=dbc.Row([
+#             dbc.Col([
+#                             dbc.Input(bs_size="sm",id={'type':'sobol','index':n_clicks}, type="number",value=np.nan,
+#                                       placeholder='X{}'.format(n_clicks),
+#                                         debounce=True,className='ip_field',style={'width': '100px'}),
+#                         ],width=3)
+#         ])
+#         children.append(add_card)
+#         return children
+#     elif sobol_order==2:
+
+
+
+
+
+
+
+
+
+
+@app.callback(
+    Output('plot_poly_3D','figure'),
+    [
+    Input('ModelSet','data'),
+    Input('CU_button','n_clicks'),
+    Input('True_vals','data')
+    ],
+    prevent_initial_call=True
+)
+def Plot_poly_3D(ModelSet,n_clicks,true_vals):
+    if n_clicks>0:
+        layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
+                     scene=dict(
+                         aspectmode='cube',
+                         xaxis=dict(
+                             title='Samples from DOE',
+                             gridcolor="white",
+                             showbackground=False,
+                             linecolor='black',
+                             tickcolor='black',
+                             ticks='outside',
+                             zerolinecolor="white", ),
+                         yaxis=dict(
+                             title='Samples from DOE',
+                             gridcolor="white",
+                             showbackground=False,
+                             linecolor='black',
+                             tickcolor='black',
+                             ticks='outside',
+                             zerolinecolor="white"),
+                         zaxis=dict(
+                             title='Polyfit',
+                             backgroundcolor="rgb(230, 230,200)",
+                             gridcolor="white",
+                             showbackground=False,
+                             linecolor='black',
+                             tickcolor='black',
+                             ticks='outside',
+                             zerolinecolor="white", ),
+                     ),
+                     )
+        myPoly=jsonpickle.decode(ModelSet)
+        y_true=jsonpickle.decode(true_vals)
+        myPolyFit = myPoly.get_polyfit
         DOE = myPoly.get_points()
         N = 20
         s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
@@ -820,48 +864,19 @@ def SetModel(poly,expr,compute_button,n_clicks,sobol_order):
         samples = np.hstack([S1_vec, S2_vec])
         PolyDiscreet = myPolyFit(samples)
         PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
-        fig = go.Figure()
-        fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet, colorbar_x=-0.07))
+        fig = go.Figure(layout=layout)
+        fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet,showscale=False,opacity=0.5,
+                                 colorscale = [[0,'rgb(178,34,34)'],[1,'rgb(0,0,0)']]))
 
-        vals=myPoly.get_sobol_indices(order=sobol_order)
-        return jsonpickle.encode(myPolyFit),fig,mean,variance,'{}'.format(vals)   ###
+        fig.add_trace(go.Scatter3d(x=DOE[:,0],y=DOE[:,1],z=y_true.squeeze(),mode='markers',
+                      marker=dict(size=10,color="rgb(144, 238, 144)",opacity=0.6,line=dict(color='rgb(0,0,0)',width=1))))
+
+        return fig
     else:
         raise PreventUpdate
 
 
 
-
-
-
-
-
-# @app.callback(
-#     Output('plot_poly_3D','figure'),
-#     Input('PolyFit','data'),
-#     Input('PolyObject','data'),
-#     Input('CU_button','n_clicks')
-# )
-# def Plot_Poly_fit(Polyfit,Polyobject,n_clicks):
-#     if n_clicks >0:
-#         myPoly=jsonpickle.decode(Polyobject)
-#         mypolyfit=jsonpickle.decode(Polyfit)
-#         DOE=myPoly.get_points()
-#         N = 20
-#         s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
-#         print(s1_samples)
-#         s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
-#         [S1, S2] = np.meshgrid(s1_samples, s2_samples)
-#         S1_vec = np.reshape(S1, (N * N, 1))
-#         S2_vec = np.reshape(S2, (N * N, 1))
-#         samples = np.hstack([S1_vec, S2_vec])
-#         print(type(mypolyfit))
-#         PolyDiscreet = mypolyfit( samples )
-#         PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
-#         fig=go.Figure()
-#         fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet, colorbar_x=-0.07), 1, 1)
-#         return fig
-#     else:
-#         raise PreventUpdate
 
 if __name__=="__main__":
     app.run_server(debug=True)
