@@ -21,7 +21,7 @@ navbar = dbc.Navbar(
                 [
                     dbc.NavItem(dbc.NavLink("Introduction", href="/",active='exact',className='px-3')),
                     dbc.NavItem(dbc.NavLink("Analytical Model", href="/Analytical", active='exact',className='px-3')),
-                    dbc.NavItem(dbc.NavLink("Offline Model", href="/offline",active='exact',className='px-3'))
+                    dbc.NavItem(dbc.NavLink("Offline Model", href="/Offline",active='exact',className='px-3'))
                 ], className="ml-auto", navbar=True, fill=True
             ),
         ], fluid=True

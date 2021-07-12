@@ -19,16 +19,25 @@ from navbar import navbar
 from app import app
 from apps import Analytical
 from apps import Offline
+from utils import convert_latex
 
 home_text=r'''
 ## UNCERTAINTY QUANTIFICATION
+
+Uncertainty Quantification in laymen term means finding the uncertainty of our QOI (Quantity of interest) based on the
+uncertainty in input parameters. It tries to determine how likely certain outcomes are if some aspects of the system are 
+not exactly known. Figure $1$ represents the same. The uncertainty in our output y is dependent on the uncertainties in 
+parameters $s1$ and $s2$ when propagated through our model $f(s1, s2)$.
+
+
+
 
 ....
 
 
 '''
 
-home_text=dcc.Markdown(home_text)
+home_text=dcc.Markdown(convert_latex(home_text),dangerously_allow_html=True, style={'text-align':'justify'})
 
 homepage = dbc.Container([home_text])
 
@@ -36,7 +45,7 @@ app.layout = html.Div(
     [
         dcc.Location(id='url', refresh=True),
         navbar,
-        html.Div(homepage,id="page-content"),
+        html.Div([homepage],id="page-content"),
     ],
     style={'padding-top': '70px'}
 )
@@ -51,6 +60,8 @@ def display_page(pathname):
         return Analytical.layout
     elif pathname == '/Offline':
         return Offline.layout
+    else:
+        raise PreventUpdate
 
 
 
