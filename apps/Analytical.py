@@ -24,7 +24,9 @@ from navbar import navbar
 from utils import convert_latex
 
 
-
+###################################################################
+# Style Elements
+###################################################################
 
 TOP_BAR_STYLE = {
     "background-color": "#edf2f8",
@@ -40,6 +42,9 @@ TOP_CARD_STYLE = {
     "padding": "2rem 1rem",
     "height": "10%"
 }
+###################################################################
+# Distributions Data (@To add more)
+###################################################################
 
 MEAN_VAR_DIST = {
     "Gaussian": db.gaussian,
@@ -57,6 +62,10 @@ LOW_UP_SHA_SHB = {
     "Beta": db.beta
 }
 
+###################################################################
+# Analytical Introduction Text
+###################################################################
+
 TOP_TEXT=r'''
 ## ANALYTICAL MODEL
 
@@ -65,6 +74,10 @@ This model is used for uncertainty quantification for user defined parameters an
 top_text=dcc.Markdown(convert_latex(TOP_TEXT),style={"margin-left": "2rem"})
 
 toptext = dbc.Container([TOP_TEXT])
+
+###################################################################
+# Parameter Definition Card
+###################################################################
 
 TOP_CARD = dbc.Card(
     [
@@ -115,8 +128,12 @@ TOP_CARD = dbc.Card(
            },
 )
 
+###################################################################
+# PDF Plot
+###################################################################
 
 PDF_PLOT=dbc.Container([dcc.Graph(id='plot_pdf', style={'width': '100%',})])
+
 
 PDF_GRAPH = dbc.Card([
     dbc.CardHeader(dcc.Markdown("**Probability Density Function**",style={"color": "#000000"})),
@@ -133,8 +150,9 @@ PDF_GRAPH = dbc.Card([
 
 
 
-
-
+###################################################################
+# Card for setting basis, levels, q and compute cardinality
+###################################################################
 
 BASIS_CARD = dbc.Card([
     dbc.CardHeader([dcc.Markdown("**Basis Selection**",style={"color": "#000000"})]),
@@ -224,6 +242,14 @@ BASIS_CARD = dbc.Card([
         ])
 ], style={"top": "0.5rem", "width": "96%", "height": "525px"})
 
+
+###################################################################
+# UQ CARD:-
+# Outputs: Mean, Variance, R2, Sobol Indices, Polyfit
+###################################################################
+
+
+
 COMPUTE_CARD = dbc.Card([
     dbc.CardHeader([dcc.Markdown("**Compute Uncertainty**",style={"color": "#000000"})]),
     dbc.CardBody([
@@ -251,6 +277,9 @@ COMPUTE_CARD = dbc.Card([
                         dbc.Button(['Compute Uncertainty'], id='CU_button', n_clicks=0, className='ip_buttons',color='primary',
                                    disabled=True)
                     ]),
+                    dbc.Tooltip(['Cardinality Check and Input Function are necessary for computing uncertainty'
+                                 ],id='cu_tooltip',target="CU_button",
+                                 placement='right'),
                     dcc.Store(id='ModelSet'),
                     dcc.Store(id='True_vals')
 
@@ -396,8 +425,9 @@ dbc.Col([
 # )
 
 
-
-
+###################################################################
+# Analytical Layout
+###################################################################
 
 layout = html.Div([
     navbar,
@@ -418,6 +448,9 @@ layout = html.Div([
     ])
 ])
 
+###################################################################
+# Callback for disabling AP button after 5 clicks
+###################################################################
 
 @app.callback(
     Output('AP_button', 'disabled'),
@@ -428,6 +461,10 @@ def check_param(n_clicks):
         return True
     else:
         return False
+
+###################################################################
+# Callback for adding parameter to param definition card
+###################################################################
 
 
 @app.callback(
@@ -541,6 +578,12 @@ def addInputs(n_clicks, children):
     wait = None
     return children, wait
 
+###################################################################
+# Callback for disabling Cardinality Check button
+###################################################################
+
+
+
 @app.callback(
     Output('CC_button','disabled'),
     [
@@ -552,6 +595,10 @@ def CheckifAPClicked(n_clicks):
         return False
     else:
         return True
+
+###################################################################
+# Callback for disabling Compute Uncertainty button
+###################################################################
 
 @app.callback(
     Output('CU_button','disabled'),
@@ -565,6 +612,11 @@ def CheckifCCClickd(n_clicks,input_val):
         return False
     else:
         return True
+
+###################################################################
+# Callback to map input boxes to distributions
+###################################################################
+
 
 @app.callback(
     Output({'type': 'params', 'index': dash.dependencies.MATCH}, 'placeholder'),
@@ -593,6 +645,12 @@ def UpdateInputField(value):
         return 'Lower Value...', 'Upper Value...', 'Min Value...', 'Max Value...', show, show, show, show
     if value in LOW_UP_SHA_SHB.keys():
         return 'Shape A...', 'Shape B...', 'Min Value...', 'Max Value...', show, show, show, show
+
+
+
+###################################################################
+# Callback to create EQ Param Objects
+###################################################################
 
 
 @app.callback(
@@ -643,10 +701,9 @@ def ParamListUpload(n_clicks, shape_parameter_A, shape_parameter_B, distribution
     return jsonpickle.encode(param_list)
 
 
-LOWER_UPPER_DIST = {
-    "Chebyshev": db.chebyshev
-}
-
+###################################################################
+# Function to compute s_values and pdf
+###################################################################
 
 def CreateParam(distribution, shape_parameter_A, shape_parameter_B, min, max, order):
     param_obj = eq.Parameter(distribution=distribution, shape_parameter_A=shape_parameter_A,
@@ -654,6 +711,11 @@ def CreateParam(distribution, shape_parameter_A, shape_parameter_B, min, max, or
                              lower=min, upper=max, order=order)
     s_values, pdf = param_obj.get_pdf()
     return param_obj, s_values, pdf
+
+
+###################################################################
+# Callback to plot pdf
+###################################################################
 
 
 @app.callback(
@@ -701,6 +763,12 @@ def PlotPdf(pdf_val, param1_val, params2_val, drop1_val, max_val, min_val, order
     return fig
 
 
+
+###################################################################
+# Callback to handle toggle switch in param definition card
+###################################################################
+
+
 @app.callback(
     Output({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
     Input({'type': 'radio_pdf', 'index': dash.dependencies.ALL}, 'value'),
@@ -724,6 +792,12 @@ def setToggles(pdf_val):
 
         test = [[0] if j != i else elem for j, x in enumerate(pdf_val)]
     return ret_vals
+
+
+###################################################################
+# Callback to disable basis card input boxes based on basis selection
+###################################################################
+
 
 
 @app.callback(
@@ -756,6 +830,11 @@ def Set_Polynomial(parameters, basis, method):
     myPoly = eq.Poly(parameters=parameters, basis=basis, method=method)
     return myPoly
 
+
+
+###################################################################
+# Callback for computing cardinality and output warning if necessary
+###################################################################
 
 @app.callback(
     [Output('op_box', 'value'),
@@ -795,6 +874,10 @@ def OutputCardinality(n_clicks, param_obj, params_click, basis_select, q_val, le
         raise PreventUpdate
 
 
+###################################################################
+# Callback for automatic selection of solver method based on basis selection
+###################################################################
+
 @app.callback(
     Output('solver_method', 'value'),
     [Input('drop_basis', 'value')],
@@ -805,6 +888,10 @@ def SetMethod(drop_basis):
         return 'least-squares'
     else:
         return 'numerical-integration'
+
+###################################################################
+# Plotting Function: To plot basis 1D/2D/3D
+###################################################################
 
 
 @app.callback(
@@ -873,6 +960,9 @@ def PlotBasis(poly, n_clicks):
     else:
         raise PreventUpdate
 
+###################################################################
+# Callback to set Poly object, calculate mean, variance, r2_score and compute Sobol_Indices
+###################################################################
 
 @app.callback(
     [Output('ModelSet', 'data'),
@@ -951,7 +1041,9 @@ def SetModel(poly, expr, compute_button, n_clicks, order):
         raise PreventUpdate
 
 
-
+###################################################################
+# Disabling toggle for 1D/2D for polyfit plotting function
+###################################################################
 
 @app.callback(
     Output('toggle','disabled'),
@@ -963,6 +1055,28 @@ def ToggleCheck(n_clicks):
     else:
         return True
 
+# @app.callback(
+#     Output('cu_tooltip','children'),
+#     [Input('CC_button','n_clicks'),
+#      Input('input_func','value'),
+#      Input('cu_tooltip','children')]
+# )
+# def TooltipVal(n_clicks,input_func,children):
+#     if n_clicks==0:
+#         print(n_clicks)
+#         add_val=dcc.Markdown(["Cardinality Check is required for computing uncertainty"])
+#     elif input_func is None:
+#         add_val=dcc.Markdown(["Please Enter the input function to continue"])
+#     else:
+#         add_val=None
+#     print(add_val)
+#     children = children.append(add_val)
+#     return children
+
+
+###################################################################
+# Plotting Function: Polyfit plot
+###################################################################
 
 @app.callback(
     Output('plot_poly_3D', 'figure'),
