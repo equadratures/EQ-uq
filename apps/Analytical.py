@@ -22,6 +22,8 @@ import time
 from app import app
 from navbar import navbar
 from utils import convert_latex
+import requests
+import timeit
 
 
 ###################################################################
@@ -1089,7 +1091,7 @@ def ToggleCheck(n_clicks):
     ],
     prevent_initial_call=True
 )
-def Plot_poly_3D(ModelSet, n_clicks, true_vals,param_num,dims):
+def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims):
     if n_clicks > 0:
         if dims:
             if param_num==2:
@@ -1143,7 +1145,6 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals,param_num,dims):
                 fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=y_true.squeeze(), mode='markers',
                                    marker=dict(size=10, color="rgb(144, 238, 144)", opacity=0.6,
                                                line=dict(color='rgb(0,0,0)', width=1))))
-
                 return fig
             else:
                 raise PreventUpdate
@@ -1161,7 +1162,9 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals,param_num,dims):
             fig.add_trace(go.Scattergl(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
                                        marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                    line=dict(color='rgb(0,0,0)', width=1))))
+            
             return fig
+
     else:
         raise PreventUpdate
 
