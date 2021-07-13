@@ -112,6 +112,7 @@ TOP_CARD = dbc.Card(
                 ]),
                 html.Br(),
                 html.Br(),
+                dcc.Store(id='ndims'),
                 dbc.Row(
                     dbc.Col(
                         html.Div(id='param_add', children=[])))
@@ -657,6 +658,7 @@ def UpdateInputField(value):
 
 @app.callback(
     Output('ParamObjects', 'data'),
+    Output('ndims','data'),
     [
         Input('AP_button', 'n_clicks'),
         Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
@@ -700,7 +702,7 @@ def ParamListUpload(n_clicks, shape_parameter_A, shape_parameter_B, distribution
                                      shape_parameter_B=shape_parameter_B[j], lower=min[j], upper=max[j], order=order[j])
 
             param_list.append(param)
-    return jsonpickle.encode(param_list)
+    return jsonpickle.encode(param_list),len(param_list)
 
 
 ###################################################################
@@ -832,50 +834,6 @@ def Set_Polynomial(parameters, basis, method):
     myPoly = eq.Poly(parameters=parameters, basis=basis, method=method)
     return myPoly
 
-
-
-###################################################################
-# Callback for computing cardinality and output warning if necessary
-###################################################################
-
-@app.callback(
-    [Output('op_box', 'value'),
-     Output('PolyObject', 'data'),
-     Output('compute-warning','is_open'),
-     Output('compute-warning','children')
-     ],
-    [
-        Input('CC_button', 'n_clicks'),
-        Input('ParamObjects', 'data')],
-    [
-        State('AP_button', 'n_clicks'),
-        State('drop_basis', 'value'),
-        State('q_val', 'value'),
-        State('levels', 'value'),
-        State('basis_growth_rule', 'value'),
-        State('solver_method', 'value')
-    ],
-    prevent_initial_call=True
-)
-def OutputCardinality(n_clicks, param_obj, params_click, basis_select, q_val, levels, growth_rule, solver_method):
-    if n_clicks != 0:
-        if basis_select is None:
-            return 'Error...',None,True,'No basis value selected'
-        elif basis_select=='sparse-grid' and (levels or growth_rule is None):
-            return 'ERROR...',None,True,'Enter the required values'
-        else:
-            param_data = jsonpickle.decode(param_obj)
-            basis_ord=[]
-            for elem in param_data:
-                basis_ord.append(elem.order)
-            mybasis = Set_Basis(basis_val=basis_select, order=basis_ord, level=levels, q_val=q_val, growth_rule=growth_rule)
-            myPoly = eq.Poly(parameters=param_data, basis=mybasis, method=solver_method)
-
-            return [mybasis.get_cardinality(), jsonpickle.encode(myPoly),False,None]
-    else:
-        raise PreventUpdate
-
-
 ###################################################################
 # Callback for automatic selection of solver method based on basis selection
 ###################################################################
@@ -891,6 +849,53 @@ def SetMethod(drop_basis):
     else:
         return 'numerical-integration'
 
+
+
+###################################################################
+# Callback for computing cardinality and output warning if necessary
+###################################################################
+
+@app.callback(
+    [Output('op_box', 'value'),
+     Output('PolyObject', 'data'),
+     Output('compute-warning','is_open'),
+     Output('compute-warning','children')
+     ],
+    [
+        Input('CC_button', 'n_clicks'),
+        Input('ParamObjects', 'data'),
+        Input('ndims','data')],
+    [
+        State('AP_button', 'n_clicks'),
+        State('drop_basis', 'value'),
+        State('q_val', 'value'),
+        State('levels', 'value'),
+        State('basis_growth_rule', 'value'),
+        State('solver_method', 'value')
+    ],
+    prevent_initial_call=True
+)
+def OutputCardinality(n_clicks, param_obj,ndims,params_click, basis_select, q_val, levels, growth_rule, solver_method):
+    if n_clicks != 0:
+        if basis_select is None:
+            return 'Error...',None,True,'No basis value selected'
+        elif basis_select=='sparse-grid' and (levels or growth_rule is None):
+            return 'ERROR...',None,True,'Enter the required values'
+        else:
+            param_data = jsonpickle.decode(param_obj)
+            basis_ord=[]
+            for elem in param_data:
+                basis_ord.append(elem.order)
+            mybasis = Set_Basis(basis_val=basis_select, order=basis_ord, level=levels, q_val=q_val, growth_rule=growth_rule)
+            myPoly = eq.Poly(parameters=param_data, basis=mybasis, method=solver_method)
+
+
+            return [mybasis.get_cardinality(), jsonpickle.encode(myPoly),False,None]
+    else:
+        raise PreventUpdate
+
+
+
 ###################################################################
 # Plotting Function: To plot basis 1D/2D/3D
 ###################################################################
@@ -901,9 +906,10 @@ def SetMethod(drop_basis):
     [
         Input('PolyObject', 'data'),
         Input('AP_button', 'n_clicks'),
+        Input('ndims','data')
     ]
 )
-def PlotBasis(poly, n_clicks):
+def PlotBasis(poly, n_clicks,ndims):
     if poly is not None:
         myPoly = jsonpickle.decode(poly)
         DOE = myPoly.get_points()
@@ -915,15 +921,15 @@ def PlotBasis(poly, n_clicks):
         fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
         fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside',
                          zerolinecolor='lightgrey')
-        if n_clicks == 1:
+        if ndims == 1:
             fig.add_trace(go.Scatter(x=DOE, y=DOE, mode='markers',marker=dict(size=5, color="rgb(144, 238, 144)", opacity=0.6,
                                                line=dict(color='rgb(0,0,0)', width=1))))
             return fig
-        elif n_clicks == 2:
+        elif ndims == 2:
             fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=5, color="rgb(144, 238, 144)", opacity=0.6,
                                                line=dict(color='rgb(0,0,0)', width=1))))
             return fig
-        elif n_clicks>=3:
+        elif ndims>=3:
             fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
                       scene=dict(
                           aspectmode='cube',
@@ -991,7 +997,6 @@ def SetModel(poly, expr, compute_button, n_clicks, order):
             for i in range(n_clicks):
                 exec(x[i])
             return ne.evaluate(expr)
-
         myPoly.set_model(f)
         values = myPoly.get_mean_and_variance()
         mean = values[0]
@@ -1087,12 +1092,13 @@ def ToggleCheck(n_clicks):
         Input('CU_button', 'n_clicks'),
         Input('True_vals', 'data'),
         Input('AP_button','n_clicks'),
-        Input('toggle','value')
+        Input('toggle','value'),
+        Input('ndims','data')
     ],
     prevent_initial_call=True
 )
-def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims):
-    if n_clicks > 0:
+def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims):
+    if ModelSet is not None:
         if dims:
             if param_num==2:
                 layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
@@ -1162,7 +1168,7 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims):
             fig.add_trace(go.Scattergl(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
                                        marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                    line=dict(color='rgb(0,0,0)', width=1))))
-            
+
             return fig
 
     else:
