@@ -251,7 +251,34 @@ BASIS_CARD = dbc.Card([
 # Outputs: Mean, Variance, R2, Sobol Indices, Polyfit
 ###################################################################
 
+params = dict(
+                gridcolor="white",
+                showbackground=False,
+                linecolor='black',
+                tickcolor='black',
+                ticks='outside',
+                zerolinecolor="white")
 
+layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
+        scene=dict(
+            aspectmode='cube',
+            xaxis=params,
+            yaxis=params,
+            zaxis=params,
+        ),
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)'
+        )
+polyfig3D = go.Figure(layout=layout)
+polyfig3D.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+polyfig3D.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+
+polyfig3D.add_trace(go.Surface(x=[], y=[], z=[], showscale=False, opacity=0.5,
+                    colorscale=[[0, 'rgb(178,34,34)'], [1, 'rgb(0,0,0)']]))
+
+polyfig3D.add_trace(go.Scatter3d(x=[], y=[], z=[], mode='markers',
+                   marker=dict(size=10, color="rgb(144, 238, 144)", opacity=0.6,
+                               line=dict(color='rgb(0,0,0)', width=1))))
 
 COMPUTE_CARD = dbc.Card([
     dbc.CardHeader([dcc.Markdown("**Compute Uncertainty**",style={"color": "#000000"})]),
@@ -379,7 +406,7 @@ COMPUTE_CARD = dbc.Card([
 
             dbc.Col([
                 dbc.Row([
-                dcc.Graph(id='plot_poly_3D', style={'width': '600px'}),
+                dcc.Graph(id='plot_poly_3D', style={'width': '600px'}, figure=polyfig3D),
                     ]),
 dbc.Row([
 dbc.Col([
@@ -1095,40 +1122,22 @@ def ToggleCheck(n_clicks):
         Input('toggle','value'),
         Input('ndims','data')
     ],
+    State('plot_poly_3D', 'figure'),
     prevent_initial_call=True
 )
-def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims):
+def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
     if ModelSet is not None:
         if dims:
             if param_num==2:
-                layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
+                layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 0}, autosize=True,
                         scene=dict(
                           aspectmode='cube',
                           xaxis=dict(
-                              title='X1',
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white", ),
+                              title='X1'),
                           yaxis=dict(
-                              title='X2',
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white"),
+                              title='X2'),
                           zaxis=dict(
-                              title=r'f(x)',
-                              backgroundcolor="rgb(230, 230,200)",
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white", ),
+                              title=r'f(x)'),
                       ),
                       )
                 myPoly = jsonpickle.decode(ModelSet)
@@ -1144,13 +1153,13 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims):
                 samples = np.hstack([S1_vec, S2_vec])
                 PolyDiscreet = myPolyFit(samples)
                 PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
-                fig = go.Figure(layout=layout)
-                fig.add_trace(go.Surface(x=S1, y=S2, z=PolyDiscreet, showscale=False, opacity=0.5,
-                                 colorscale=[[0, 'rgb(178,34,34)'], [1, 'rgb(0,0,0)']]))
 
-                fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=y_true.squeeze(), mode='markers',
-                                   marker=dict(size=10, color="rgb(144, 238, 144)", opacity=0.6,
-                                               line=dict(color='rgb(0,0,0)', width=1))))
+                fig = go.Figure(fig)
+                fig.update_layout(layout, scene_camera=dict(eye=dict(x=1.25, y=1.25, z=1.25)))
+                fig.data = fig.data[0:2]
+                fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
+                fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true.squeeze()}, 1)
+
                 return fig
             else:
                 raise PreventUpdate
@@ -1158,14 +1167,16 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims):
             layout = {"xaxis": {"title": r'X1'}, "yaxis": {"title": r'X2'},
                       'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 60},
                       'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
-            fig = go.Figure(layout=layout)
-            fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-            fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             myPoly = jsonpickle.decode(ModelSet)
             y_true = jsonpickle.decode(true_vals)
             myPolyFit = myPoly.get_polyfit
             DOE = myPoly.get_points()
-            fig.add_trace(go.Scattergl(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
+
+            fig = go.Figure(fig)
+            fig.update_layout(layout)
+            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
+            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
+            fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
                                        marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                    line=dict(color='rgb(0,0,0)', width=1))))
 
@@ -1173,5 +1184,3 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims):
 
     else:
         raise PreventUpdate
-
-
