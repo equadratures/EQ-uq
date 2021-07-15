@@ -259,12 +259,19 @@ params = dict(
                 ticks='outside',
                 zerolinecolor="white")
 
+xparams = params.copy()
+xparams['title'] = 'X1'
+yparams = params.copy()
+yparams['title'] = 'X2'
+zparams = params.copy()
+zparams['title'] = r'f(x)'
+
 layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
         scene=dict(
             aspectmode='cube',
-            xaxis=params,
-            yaxis=params,
-            zaxis=params,
+            xaxis=xparams,
+            yaxis=yparams,
+            zaxis=zparams,
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)'
@@ -1129,19 +1136,9 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
     if ModelSet is not None:
         if dims:
             if param_num==2:
-                layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 0}, autosize=True,
-                        scene=dict(
-                          aspectmode='cube',
-                          xaxis=dict(
-                              title='X1'),
-                          yaxis=dict(
-                              title='X2'),
-                          zaxis=dict(
-                              title=r'f(x)'),
-                      ),
-                      )
+                start = time.time()
                 myPoly = jsonpickle.decode(ModelSet)
-                y_true = jsonpickle.decode(true_vals)
+                y_true = jsonpickle.decode(true_vals).ravel()
                 myPolyFit = myPoly.get_polyfit
                 DOE = myPoly.get_points()
                 N = 20
@@ -1155,10 +1152,9 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
                 PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
 
                 fig = go.Figure(fig)
-                fig.update_layout(layout, scene_camera=dict(eye=dict(x=1.25, y=1.25, z=1.25)))
                 fig.data = fig.data[0:2]
                 fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
-                fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true.squeeze()}, 1)
+                fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
 
                 return fig
             else:
@@ -1168,7 +1164,7 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
                       'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 60},
                       'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
             myPoly = jsonpickle.decode(ModelSet)
-            y_true = jsonpickle.decode(true_vals)
+            y_true = jsonpickle.decode(true_vals).ravel()
             myPolyFit = myPoly.get_polyfit
             DOE = myPoly.get_points()
 
@@ -1177,9 +1173,9 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
             fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
             fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
             if len(fig.data) == 3:
-                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true.flatten()}, 2)
+                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
             else:
-                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
+                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
                                         marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                     line=dict(color='rgb(0,0,0)', width=1))))
 
