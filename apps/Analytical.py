@@ -1176,9 +1176,12 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num, dims,ndims,fig):
             fig.update_layout(layout)
             fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
             fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
-            fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
-                                       marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
-                                                   line=dict(color='rgb(0,0,0)', width=1))))
+            if len(fig.data) == 3:
+                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true.flatten()}, 2)
+            else:
+                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true.flatten(), mode='markers', name='Training samples',
+                                        marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
+                                                    line=dict(color='rgb(0,0,0)', width=1))))
 
             return fig
 
