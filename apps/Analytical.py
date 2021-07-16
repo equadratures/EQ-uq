@@ -1184,7 +1184,7 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
             samples = np.hstack([S1_vec])
             PolyDiscreet = myPolyFit(samples)
             PolyDiscreet = np.reshape(PolyDiscreet, (N))
-            fig = go.Figure(layout=layout)
+            fig = go.Figure(fig)
             fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_layout(layout)
