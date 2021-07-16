@@ -495,10 +495,10 @@ layout = html.Div([
 @app.callback(
     Output('AP_button', 'disabled'),
     [Input('AP_button', 'n_clicks'),
-     Input('CC_button','n_clicks')]
+     Input('ndims','data')]
 )
-def check_param(n_clicks,cn_clicks):
-    if n_clicks > 4 or cn_clicks>0:
+def check_param(n_clicks,ndims):
+    if ndims > 4:
         return True
     else:
         return False
@@ -914,8 +914,8 @@ def SetMethod(drop_basis):
     prevent_initial_call=True
 )
 def OutputCardinality(n_clicks, param_obj,ndims,params_click, basis_select, q_val, levels, growth_rule, solver_method):
-    if n_clicks != 0:
-        print(levels,growth_rule)
+    button_event = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CC_button' in button_event:
         if basis_select is None:
             return 'Error...',None,True,'No basis value selected'
         elif basis_select=='sparse-grid' and (levels or growth_rule) is None:
@@ -944,32 +944,34 @@ def OutputCardinality(n_clicks, param_obj,ndims,params_click, basis_select, q_va
     Output('plot_basis', 'figure'),
     [
         Input('PolyObject', 'data'),
-        Input('AP_button', 'n_clicks'),
+        Input('CC_button', 'n_clicks'),
         Input('ndims','data')
     ]
 )
 def PlotBasis(poly, n_clicks,ndims):
-    if poly is not None:
-        myPoly = jsonpickle.decode(poly)
-        DOE = myPoly.get_points()
-        layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
+    button_event = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CC_button' in button_event:
+        if poly is not None:
+            myPoly = jsonpickle.decode(poly)
+            DOE = myPoly.get_points()
+            layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
                    'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True,
                   "xaxis":{"title": r'X'}, "yaxis": {"title": r'Y'}}
 
-        fig = go.Figure(layout=layout)
-        fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-        fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-        if ndims == 1:
-            fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=10, color="rgb(144, 238, 144)", opacity=1,
+            fig = go.Figure(layout=layout)
+            fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+            fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+            if ndims == 1:
+                fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=10, color="rgb(144, 238, 144)", opacity=1,
                                                line=dict(color='rgb(0,0,0)', width=1))))
-            fig.update_yaxes(visible=False)
-            return fig
-        elif ndims == 2:
-            fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=5, color="rgb(144, 238, 144)", opacity=0.6,
+                fig.update_yaxes(visible=False)
+                return fig
+            elif ndims == 2:
+                fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=5, color="rgb(144, 238, 144)", opacity=0.6,
                                                line=dict(color='rgb(0,0,0)', width=1))))
-            return fig
-        elif ndims>=3:
-            fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
+                return fig
+            elif ndims>=3:
+                fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
                       scene=dict(
                           aspectmode='cube',
                           xaxis=dict(
@@ -999,10 +1001,12 @@ def PlotBasis(poly, n_clicks,ndims):
                               zerolinecolor="white", ),
                       ),
                       ))
-            fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
+                fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
                                        marker=dict(size=10, color="rgb(144, 238, 144)", opacity=0.6,
                                                    line=dict(color='rgb(0,0,0)', width=1))))
-            return fig
+                return fig
+        else:
+            raise PreventUpdate
 
     else:
         raise PreventUpdate
@@ -1027,19 +1031,21 @@ def PlotBasis(poly, n_clicks,ndims):
         Input('CU_button', 'n_clicks'),
         Input('AP_button', 'n_clicks'),
         Input('sobol_order', 'value'),
+        Input('ndims','data')
         ],
     State('input_func', 'value'),
     prevent_initial_call=True
 
 )
 
-def SetModel(poly,compute_button,n_clicks, order,expr):
-    if compute_button != 0:
+def SetModel(poly,compute_button,n_clicks, order,ndims,expr):
+    button_event = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CU_button' in button_event:
         myPoly = jsonpickle.decode(poly)
-
-        x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, n_clicks + 1)]
+        print(ndims)
+        x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, ndims + 1)]
         def f(op):
-            for i in range(n_clicks):
+            for i in range(ndims):
                 exec(x[i])
             return ne.evaluate(expr)
         try:
@@ -1146,63 +1152,66 @@ def SetModel(poly,compute_button,n_clicks, order,expr):
 def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
     hide={'display':'None'}
     default={'width':'600px'}
-    print('ModelSet',ModelSet)
-    if (ModelSet is not None):
-        if ndims==2:
-            myPoly = jsonpickle.decode(ModelSet)
-            y_true = jsonpickle.decode(true_vals).ravel()
-            myPolyFit = myPoly.get_polyfit
-            DOE = myPoly.get_points()
-            N = 20
-            s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
-            s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
-            [S1, S2] = np.meshgrid(s1_samples, s2_samples)
-            S1_vec = np.reshape(S1, (N * N, 1))
-            S2_vec = np.reshape(S2, (N * N, 1))
-            samples = np.hstack([S1_vec, S2_vec])
-            PolyDiscreet = myPolyFit(samples)
-            PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
+    button_event = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CU_button' in button_event:
+        if (ModelSet is not None):
+            if ndims==2:
+                myPoly = jsonpickle.decode(ModelSet)
+                y_true = jsonpickle.decode(true_vals).ravel()
+                myPolyFit = myPoly.get_polyfit
+                DOE = myPoly.get_points()
+                N = 20
+                s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
+                s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
+                [S1, S2] = np.meshgrid(s1_samples, s2_samples)
+                S1_vec = np.reshape(S1, (N * N, 1))
+                S2_vec = np.reshape(S2, (N * N, 1))
+                samples = np.hstack([S1_vec, S2_vec])
+                PolyDiscreet = myPolyFit(samples)
+                PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
 
-            fig = go.Figure(fig)
-            fig.data = fig.data[0:2]
-            fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
-            fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
-            return fig,default
-        elif ndims==1:
-            layout = {"xaxis": {"title": r'X1'}, "yaxis": {"title": r'f(X)'},
+                fig = go.Figure(fig)
+                fig.data = fig.data[0:2]
+                fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
+                fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
+                return fig,default
+            elif ndims==1:
+                layout = {"xaxis": {"title": r'X1'}, "yaxis": {"title": r'f(X)'},
                       'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 60},
                       'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
 
-            myPoly = jsonpickle.decode(ModelSet)
-            y_true = jsonpickle.decode(true_vals).ravel()
-            myPolyFit = myPoly.get_polyfit
-            DOE = myPoly.get_points()
-            N = 20
-            s1_samples = np.linspace(DOE[0, 0], DOE[-1, -1], N)
-            [S1] = np.meshgrid(s1_samples)
-            S1_vec = np.reshape(S1, (N , 1))
-            samples = np.hstack([S1_vec])
-            PolyDiscreet = myPolyFit(samples)
-            PolyDiscreet = np.reshape(PolyDiscreet, (N))
-            fig = go.Figure(fig)
-            fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-            fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-            fig.update_layout(layout)
+                myPoly = jsonpickle.decode(ModelSet)
+                y_true = jsonpickle.decode(true_vals).ravel()
+                myPolyFit = myPoly.get_polyfit
+                DOE = myPoly.get_points()
+                N = 20
+                s1_samples = np.linspace(DOE[0, 0], DOE[-1, -1], N)
+                [S1] = np.meshgrid(s1_samples)
+                S1_vec = np.reshape(S1, (N , 1))
+                samples = np.hstack([S1_vec])
+                PolyDiscreet = myPolyFit(samples)
+                PolyDiscreet = np.reshape(PolyDiscreet, (N))
+                fig = go.Figure(fig)
+                fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+                fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+                fig.update_layout(layout)
 
-            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
-            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
-            if len(fig.data) == 4:
-                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
-                fig.plotly_restyle({'x': S1      , 'y': PolyDiscreet}, 3)
-            else:
-                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
+                fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
+                fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
+                if len(fig.data) == 4:
+                    fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
+                    fig.plotly_restyle({'x': S1      , 'y': PolyDiscreet}, 3)
+                else:
+                    fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
                                         marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                     line=dict(color='rgb(0,0,0)', width=1))))
-                fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='f(x)',line_color='rgb(178,34,34)'))
+                    fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='f(x)',line_color='rgb(178,34,34)'))
 
-            return fig,default
+                return fig,default
+            else:
+                return {},hide
+
         else:
-            return {},hide
-
+            return fig,hide
     else:
-        return fig,hide
+        raise PreventUpdate
