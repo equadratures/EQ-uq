@@ -265,12 +265,19 @@ params = dict(
                 ticks='outside',
                 zerolinecolor="white")
 
+xparams = params.copy()
+xparams['title'] = 'X1'
+yparams = params.copy()
+yparams['title'] = 'X2'
+zparams = params.copy()
+zparams['title'] = r'f(x)'
+
 layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
         scene=dict(
             aspectmode='cube',
-            xaxis=params,
-            yaxis=params,
-            zaxis=params,
+            xaxis=xparams,
+            yaxis=yparams,
+            zaxis=zparams,
         ),
         paper_bgcolor='rgba(0,0,0,0)',
         plot_bgcolor='rgba(0,0,0,0)'
@@ -1142,22 +1149,8 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
     print('ModelSet',ModelSet)
     if (ModelSet is not None):
         if ndims==2:
-            layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 0}, autosize=True,
-                        scene=dict(
-                          aspectmode='cube',
-                          xaxis=dict(
-                              title='X1'),
-                          yaxis=dict(
-                              title='X2'),
-                          zaxis=dict(
-                              title=r'f(x)'),
-                      ),
-                      )
-            fig = go.Figure(fig)
-            fig.update_layout(layout, scene_camera=dict(eye=dict(x=1.25, y=1.25, z=1.25)))
-            fig.data = fig.data[0:2]
             myPoly = jsonpickle.decode(ModelSet)
-            y_true = jsonpickle.decode(true_vals)
+            y_true = jsonpickle.decode(true_vals).ravel()
             myPolyFit = myPoly.get_polyfit
             DOE = myPoly.get_points()
             N = 20
@@ -1169,8 +1162,11 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
             samples = np.hstack([S1_vec, S2_vec])
             PolyDiscreet = myPolyFit(samples)
             PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
+
+            fig = go.Figure(fig)
+            fig.data = fig.data[0:2]
             fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
-            fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true.squeeze()}, 1)
+            fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
             return fig,default
         elif ndims==1:
             layout = {"xaxis": {"title": r'X1'}, "yaxis": {"title": r'f(X)'},
@@ -1178,7 +1174,7 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
                       'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
 
             myPoly = jsonpickle.decode(ModelSet)
-            y_true = jsonpickle.decode(true_vals)
+            y_true = jsonpickle.decode(true_vals).ravel()
             myPolyFit = myPoly.get_polyfit
             DOE = myPoly.get_points()
             N = 20
@@ -1192,12 +1188,16 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
             fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_layout(layout)
-            if len(fig.data)==3:
-                fig.plotly_restyle({'x':DOE[:,0],'y':y_true.flatten()},2)
+
+            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
+            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
+            if len(fig.data) == 4:
+                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
+                fig.plotly_restyle({'x': S1      , 'y': PolyDiscreet}, 3)
             else:
-                fig.add_trace(go.Scatter(x=DOE[:, 0], y=y_true.flatten(), mode='markers', name='Training samples',
-                                     marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
-                                                 line=dict(color='rgb(0,0,0)', width=1))))
+                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
+                                        marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
+                                                    line=dict(color='rgb(0,0,0)', width=1))))
                 fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='f(x)',line_color='rgb(178,34,34)'))
 
             return fig,default
