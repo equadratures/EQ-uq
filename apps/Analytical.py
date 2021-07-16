@@ -383,6 +383,7 @@ COMPUTE_CARD = dbc.Card([
                                     placeholder='Interaction Order',
                                     className="m-1", id='sobol_order',
                                     optionHeight=45,
+                                    disabled=True,
                                     style={
                                         "width": "200px",
                                     }
@@ -1012,6 +1013,7 @@ def PlotBasis(poly, n_clicks,ndims):
      Output('Sobol_plot','figure'),
      Output('input-warning','is_open'),
      Output('input-warning','children'),
+     Output('sobol_order','disabled'),
      ],
     [
         Input('PolyObject', 'data'),
@@ -1020,6 +1022,7 @@ def PlotBasis(poly, n_clicks,ndims):
         Input('sobol_order', 'value'),
         ],
     State('input_func', 'value'),
+    prevent_initial_call=True
 
 )
 
@@ -1035,7 +1038,7 @@ def SetModel(poly,compute_button,n_clicks, order,expr):
         try:
             myPoly.set_model(f)
         except KeyError or ValueError:
-            return None,None,None,None,None,None,True,"Incorrect variable naming"
+            return None,None,None,None,None,None,True,"Incorrect variable naming",True
         values = myPoly.get_mean_and_variance()
         mean = values[0]
         variance = values[1]
@@ -1053,8 +1056,13 @@ def SetModel(poly,compute_button,n_clicks, order,expr):
         fig=go.Figure(layout=layout)
         fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
         fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+        ndims = myPoly.dimensions
+        if ndims == 1:
+            disabled = True
+        else:
+            disabled = False
+
         if order is not None:
-            ndims=myPoly.dimensions
             sobol_indices=myPoly.get_sobol_indices(order=order)
             layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
                               'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
@@ -1080,7 +1088,8 @@ def SetModel(poly,compute_button,n_clicks, order,expr):
             fig = go.Figure(layout=layout,data=data)
             fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30)
 
-        return jsonpickle.encode(myPoly), mean, variance, r2_score, jsonpickle.encode(y_true),fig,False,None ###
+
+        return jsonpickle.encode(myPoly), mean, variance, r2_score, jsonpickle.encode(y_true),fig,False,None,disabled ###
     else:
         raise PreventUpdate
 
@@ -1130,7 +1139,8 @@ def SetModel(poly,compute_button,n_clicks, order,expr):
 def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
     hide={'display':'None'}
     default={'width':'600px'}
-    if ModelSet is not None:
+    print('ModelSet',ModelSet)
+    if (ModelSet is not None):
         if ndims==2:
             layout = dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 0}, autosize=True,
                         scene=dict(
@@ -1179,7 +1189,6 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
             PolyDiscreet = myPolyFit(samples)
             PolyDiscreet = np.reshape(PolyDiscreet, (N))
             fig = go.Figure(layout=layout)
-
             fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
             fig.update_layout(layout)
@@ -1196,4 +1205,4 @@ def Plot_poly_3D(ModelSet, n_clicks, true_vals, param_num,ndims,fig):
             return {},hide
 
     else:
-        raise PreventUpdate
+        return fig,hide
