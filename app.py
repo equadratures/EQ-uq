@@ -1,10 +1,17 @@
-import dash
-import dash_html_components as html
-import dash_core_components as dcc
+from dash_extensions.enrich import Dash, FileSystemStore
 import dash_bootstrap_components as dbc
+from whitenoise import WhiteNoise
+import os
 
+os.makedirs("tmp/", exist_ok=True)
+output_defaults=dict(backend=FileSystemStore(cache_dir="tmp/",threshold=100), session_check=True)
 
-external_stylesheets = [dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css']
+app = Dash(__name__, suppress_callback_exceptions=True, output_defaults=output_defaults,
+        external_stylesheets=[dbc.themes.SPACELAB, 'https://codepen.io/chriddyp/pen/bWLwgP.css'],
+        external_scripts=["https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-MML-AM_CHTML" ])
+app.title = "Uncertainty Quantification with equadratures"
 
-app=dash.Dash(__name__, external_stylesheets=external_stylesheets,suppress_callback_exceptions=True,meta_tags=[{'name': 'viewport',
-                            'content': 'width=device-width, initial-scale=0.2, maximum-scale=1.2,minimum-scale=0.5'}])
+server = app.server
+server.secret_key = os.environ.get('secret_key', 'secret')
+# To serve static files (e.g. images etc)
+server.wsgi_app = WhiteNoise(server.wsgi_app, root='static/')

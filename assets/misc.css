@@ -1,0 +1,21 @@
+/* Import everyone's favourite font */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100;300;400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;300;400;500;700&display=swap');
+
+/* Main body text */
+body {
+    font-family: raleway;
+    color: black;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+    color: black
+    font-family: montserrat;
+    font-weight: 500;
+}
+
+/* Hyperlinks style */
+a {
+   text-decoration: none;
+}
