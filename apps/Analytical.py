@@ -352,11 +352,11 @@ layout = dbc.Container(
 
 @app.callback(
     Output('AP_button', 'disabled'),
-    [Input('AP_button', 'n_clicks'),
-     Input('basis_button','n_clicks')]
+    Input('AP_button', 'n_clicks'),
+    Input('basis_button','n_clicks')
 )
-def check_param(n_clicks,cn_clicks):
-    if n_clicks > 4 or cn_clicks>0:
+def check_param(n_clicks,ndims):
+    if ndims > 4:
         return True
     else:
         return False
@@ -774,56 +774,57 @@ def PlotBasis(params, mybasis, method, ndims):
         mypoly = Set_Polynomial(params, mybasis, method)
         DOE = mypoly.get_points()
         layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
-                   'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True,
-                  "xaxis":{"title": r'$x_1$'}, "yaxis": {"title": r'$x_2$'}}
+                'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True,
+                "xaxis":{"title": r'$x_1$'}, "yaxis": {"title": r'$x_2$'}}
 
         fig = go.Figure(layout=layout)
         fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
         fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
         if ndims == 1:
             fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=1,
-                                               line=dict(color='rgb(0,0,0)', width=1))))
+                line=dict(color='rgb(0,0,0)', width=1))))
             fig.update_yaxes(visible=False)
             return fig
         elif ndims == 2:
             fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6,
-                                               line=dict(color='rgb(0,0,0)', width=1))))
+                line=dict(color='rgb(0,0,0)', width=1))))
             return fig
         elif ndims>=3:
             fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
-                      scene=dict(
-                          aspectmode='cube',
-                          xaxis=dict(
-                              title=r'$x_1$',
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white", ),
-                          yaxis=dict(
-                              title=r'$x_2$',
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white"),
-                          zaxis=dict(
-                              title=r'x_3',
-                              backgroundcolor="rgb(230, 230,200)",
-                              gridcolor="white",
-                              showbackground=False,
-                              linecolor='black',
-                              tickcolor='black',
-                              ticks='outside',
-                              zerolinecolor="white", ),
-                      ),
-                      ))
+                  scene=dict(
+                      aspectmode='cube',
+                      xaxis=dict(
+                          title=r'$x_1$',
+                          gridcolor="white",
+                          showbackground=False,
+                          linecolor='black',
+                          tickcolor='black',
+                          ticks='outside',
+                          zerolinecolor="white", ),
+                      yaxis=dict(
+                          title=r'$x_2$',
+                          gridcolor="white",
+                          showbackground=False,
+                          linecolor='black',
+                          tickcolor='black',
+                          ticks='outside',
+                          zerolinecolor="white"),
+                      zaxis=dict(
+                          title=r'x_3',
+                          backgroundcolor="rgb(230, 230,200)",
+                          gridcolor="white",
+                          showbackground=False,
+                          linecolor='black',
+                          tickcolor='black',
+                          ticks='outside',
+                          zerolinecolor="white", ),
+                  ),
+                  ))
             fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
-                                       marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6,
-                                                   line=dict(color='rgb(0,0,0)', width=1))))
+                marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6, line=dict(color='rgb(0,0,0)', width=1))))
             return fig
+        else:
+            raise PreventUpdate
 
     else:
         raise PreventUpdate
@@ -994,9 +995,9 @@ def Plot_poly_3D(mypoly, ndims,fig):
                                                     line=dict(color='rgb(0,0,0)', width=1))))
                 fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='Polynomial approx.',line_color='rgb(178,34,34)'))
 
-            return fig,default
-        else:
-            return {},hide
+                return fig,default
 
+        else:
+            return fig,hide
     else:
-        return fig,hide
+        raise PreventUpdate
