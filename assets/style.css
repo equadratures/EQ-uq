@@ -1,20 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Raleway:wght@100;300;400;700&display=swap');
 
 body{
-  background-color: #EBEFF2;
+  background-color: #FFFFFF;
   font-family:"Raleway";
 }
 
-.ip_buttons{
-  text-align: center;
-  padding: 5px 10px;
-  border:3px solid #4663ac ;
-  background: none;
-  background-color: #FFFFFF;
-  display: inline-block;
-  font-size: 12px;
-  font-family: "Raleway";
-  color:#000000;
+.navbar{
+        -webkit-box-shadow: 0 4px 6px -6px #222;
+        -moz-box-shadow: 0 4px 6px -6px #222;
+        box-shadow: 0 4px 6px -6px #222;
 }
 
 .navbar{
@@ -92,21 +86,4 @@ font-size: 20px;
 
 .link:active{
   border-bottom: 3px solid red;
-}
-
-.top_card{
-  overflow-y: scroll;
-}
-
-.top_card::-webkit-scrollbar {
-  width: 0.5em;
-}
-
-.top_card::-webkit-scrollbar-track {
-  box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.3);
-}
-
-.top_card::-webkit-scrollbar-thumb {
-  background-color: darkgrey;
-  outline: 1px solid slategrey;
 }

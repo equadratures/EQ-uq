@@ -1,0 +1,17 @@
+/* border */
+.navbar {
+        -webkit-box-shadow: 0 4px 6px -6px #222;
+        -moz-box-shadow: 0 4px 6px -6px #222;
+        box-shadow: 0 4px 6px -6px #222;
+}
+
+/* Link color on hover */
+.navbar-light .nav-item.active .nav-link,
+.navbar-light .nav-item:focus .nav-link,
+.navbar-light .nav-item:hover .nav-link {
+        color: primary;
+}
+
+.navbar-light .nav-item .nav-link{
+        font-size: medium;
+}
