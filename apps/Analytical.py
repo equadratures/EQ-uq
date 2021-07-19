@@ -732,15 +732,15 @@ def SetMethod(drop_basis):
     ServersideOutput('BasisObject', 'data'),
     Output('compute-warning','is_open'),
     Output('compute-warning','children'),
-    Trigger('basis_button', 'n_clicks'),
     Input('ParamsObject', 'data'),
+    Input('basis_button','n_clicks'),
     State('drop_basis', 'value'),
     State('q_val', 'value'),
     State('levels', 'value'),
     State('basis_growth_rule', 'value'),
     prevent_initial_call=True
 )
-def SetBasis(param_obj, basis_select, q_val, levels, growth_rule):
+def SetBasis(param_obj,n_clicks,basis_select, q_val, levels, growth_rule):
     # Compute subspace (if button has just been pressed)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'basis_button' in changed_id:
@@ -753,7 +753,6 @@ def SetBasis(param_obj, basis_select, q_val, levels, growth_rule):
             for elem in param_obj:
                 basis_ord.append(elem.order)
             mybasis = Set_Basis(basis_val=basis_select, order=basis_ord, level=levels, q_val=q_val, growth_rule=growth_rule)
-
             return mybasis.get_cardinality(), mybasis, False, None
     else:
         raise PreventUpdate
@@ -769,28 +768,31 @@ def SetBasis(param_obj, basis_select, q_val, levels, growth_rule):
     Input('ndims','data')
 )
 def PlotBasis(params, mybasis, method, ndims):
-    if mybasis is not None:
-        # Fit a poly just to get points (this isn't used elsewhere)
-        mypoly = Set_Polynomial(params, mybasis, method)
-        DOE = mypoly.get_points()
-        layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    print(changed_id)
+    if 'BasisObject' in changed_id:
+        if mybasis is not None:
+            # Fit a poly just to get points (this isn't used elsewhere)
+            mypoly = Set_Polynomial(params, mybasis, method)
+            DOE = mypoly.get_points()
+            layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
                 'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True,
                 "xaxis":{"title": r'$x_1$'}, "yaxis": {"title": r'$x_2$'}}
 
-        fig = go.Figure(layout=layout)
-        fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-        fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-        if ndims == 1:
-            fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=1,
+            fig = go.Figure(layout=layout)
+            fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+            fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+            if ndims == 1:
+                fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=1,
                 line=dict(color='rgb(0,0,0)', width=1))))
-            fig.update_yaxes(visible=False)
-            return fig
-        elif ndims == 2:
-            fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6,
+                fig.update_yaxes(visible=False)
+                return fig
+            elif ndims == 2:
+                fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6,
                 line=dict(color='rgb(0,0,0)', width=1))))
-            return fig
-        elif ndims>=3:
-            fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
+                return fig
+            elif ndims>=3:
+                fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
                   scene=dict(
                       aspectmode='cube',
                       xaxis=dict(
@@ -820,12 +822,14 @@ def PlotBasis(params, mybasis, method, ndims):
                           zerolinecolor="white", ),
                   ),
                   ))
-            fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
+                fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
                 marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6, line=dict(color='rgb(0,0,0)', width=1))))
-            return fig
+                return fig
+            else:
+                raise PreventUpdate
+
         else:
             raise PreventUpdate
-
     else:
         raise PreventUpdate
 
@@ -852,7 +856,6 @@ def SetModel(params,mybasis,method,expr,ndims):
     if 'CU_button' in changed_id:
         # Create poly 
         mypoly = Set_Polynomial(params, mybasis, method)
-
         # Parse input function
         x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, ndims + 1)]
         def f(op):
@@ -864,7 +867,7 @@ def SetModel(params,mybasis,method,expr,ndims):
         try:
             mypoly.set_model(f)
         except KeyError or ValueError:
-            return None,None,None,None,True,"Incorrect variable naming",True
+            return None,None,None,True,"Incorrect variable naming",True
 
         # Get mean and variance
         mean, var = mypoly.get_mean_and_variance()
@@ -875,7 +878,6 @@ def SetModel(params,mybasis,method,expr,ndims):
         y_pred = mypoly.get_polyfit(DOE).squeeze()
         y_pred = y_pred.reshape(-1, 1)
         r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
-
         return mypoly, mean, var, r2_score, False,None ###
     else:
         raise PreventUpdate
@@ -895,43 +897,73 @@ def SetModel(params,mybasis,method,expr,ndims):
 
 )
 def Plot_Sobol(mypoly, order, ndims, fig):
-    layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CU_button' in changed_id:
+        layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
                           'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
-    fig=go.Figure(layout=layout)
-    fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-    fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-    if ndims == 1:
-        disabled = True
-    else:
-        disabled = False
+        fig=go.Figure(layout=layout)
+        fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+        fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+        if ndims == 1:
+            disabled = True
+        else:
+            disabled = False
     
-        if mypoly is not None:
-            sobol_indices=mypoly.get_sobol_indices(order=order)
-            layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
+            if mypoly is not None:
+                sobol_indices=mypoly.get_sobol_indices(order=order)
+                layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
                               'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
-            fig=go.Figure(layout=layout)
-            if order==1:
-                fig.update_yaxes(title=r'$S_{i}$')
-                labels = [r'$X_%d$' % i for i in range((ndims))]
-                to_plot = [sobol_indices[(i,)] for i in range((ndims))]
-            elif order==2:
-                fig.update_yaxes(title=r'$S_{ij}$')
-                labels = [r'$S_{%d%d}$' % (i, j) for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
-                to_plot = [sobol_indices[(i, j)] for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
-            elif order==3:
-                fig.update_yaxes(title=r'$S_{ijk}$')
-                labels = [r'$S_{%d%d%d}$' % (i, j, k) for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
+                fig=go.Figure(layout=layout)
+                if order==1:
+                    fig.update_yaxes(title=r'$S_{i}$')
+                    labels = [r'$X_%d$' % i for i in range((ndims))]
+                    to_plot = [sobol_indices[(i,)] for i in range((ndims))]
+                elif order==2:
+                    fig.update_yaxes(title=r'$S_{ij}$')
+                    labels = [r'$S_{%d%d}$' % (i, j) for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
+                    to_plot = [sobol_indices[(i, j)] for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
+                elif order==3:
+                    fig.update_yaxes(title=r'$S_{ijk}$')
+                    labels = [r'$S_{%d%d%d}$' % (i, j, k) for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
                                   range(j + 1, int(ndims))]
-                to_plot = [sobol_indices[(i, j, k)] for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
+                    to_plot = [sobol_indices[(i, j, k)] for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
                                    range(j + 1, int(ndims))]
-            fig.update_xaxes(nticks=len(sobol_indices),tickvals=labels,tickangle=45)
-            data=go.Bar(
-            x=np.arange(len(sobol_indices)),
-            y=to_plot,marker_color='LightSkyBlue',marker_line_width=2,marker_line_color='black')
-            fig = go.Figure(layout=layout,data=data)
-            fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30)
+                fig.update_xaxes(nticks=len(sobol_indices),tickvals=labels,tickangle=45)
+                data=go.Bar(
+                x=np.arange(len(sobol_indices)),
+                y=to_plot,marker_color='LightSkyBlue',marker_line_width=2,marker_line_color='black')
+                fig = go.Figure(layout=layout,data=data)
+                fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30)
 
-    return fig, disabled
+        return fig, disabled
+    else:
+        raise PreventUpdate
+
+#
+# @app.callback(
+#     Output('sobol_order','options'),
+#     Input('ndims','data'),
+#     Trigger('CU_button','n_clicks'),
+#     State('sobol_order','options'),
+#     prevent_intial_call=True
+# )
+# def SobolDisplay(ndims,options):
+#     option_list=['Order 1','Order 2','Order 3'],
+#     if ndims==2:
+#         labels=[o for o in option_list[:1]]
+#         return labels
+#     elif ndims>2:
+#         labels=[o for o in option_list]
+#         return labels
+#     else:
+#         raise PreventUpdate
+#
+
+
+
+
+
+
 
 ###################################################################
 # Plotting Function: Polyfit plot
@@ -948,56 +980,60 @@ def Plot_Sobol(mypoly, order, ndims, fig):
 def Plot_poly_3D(mypoly, ndims,fig):
     hide={'display':'None'}
     default={'width':'600px'}
-    if (mypoly is not None):
-        y_true = mypoly._model_evaluations.ravel()
-        if ndims==2:
-            DOE = mypoly.get_points()
-            N = 20
-            s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
-            s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
-            [S1, S2] = np.meshgrid(s1_samples, s2_samples)
-            S1_vec = np.reshape(S1, (N * N, 1))
-            S2_vec = np.reshape(S2, (N * N, 1))
-            samples = np.hstack([S1_vec, S2_vec])
-            PolyDiscreet = mypoly.get_polyfit(samples)
-            PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CU_button' in changed_id:
+        if (mypoly is not None):
+            y_true = mypoly._model_evaluations.ravel()
+            if ndims==2:
+                DOE = mypoly.get_points()
+                N = 20
+                s1_samples = np.linspace(DOE[0, 0], DOE[-1, 0], N)
+                s2_samples = np.linspace(DOE[0, 1], DOE[-1, 1], N)
+                [S1, S2] = np.meshgrid(s1_samples, s2_samples)
+                S1_vec = np.reshape(S1, (N * N, 1))
+                S2_vec = np.reshape(S2, (N * N, 1))
+                samples = np.hstack([S1_vec, S2_vec])
+                PolyDiscreet = mypoly.get_polyfit(samples)
+                PolyDiscreet = np.reshape(PolyDiscreet, (N, N))
 
-            fig = go.Figure(fig)
-            fig.data = fig.data[0:2]
-            fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
-            fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
-            return fig,default
-        elif ndims==1:
-            layout = {"xaxis": {"title": r'$x_1$'}, "yaxis": {"title": r'$f(x_1)$'},
+                fig = go.Figure(fig)
+                fig.data = fig.data[0:2]
+                fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
+                fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
+                return fig,default
+            elif ndims==1:
+                layout = {"xaxis": {"title": r'$x_1$'}, "yaxis": {"title": r'$f(x_1)$'},
                       'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 60},
                       'paper_bgcolor': 'white', 'plot_bgcolor': 'white', 'autosize': True}
-            DOE = mypoly.get_points()
-            N = 20
-            s1_samples = np.linspace(DOE[0, 0], DOE[-1, -1], N)
-            [S1] = np.meshgrid(s1_samples)
-            S1_vec = np.reshape(S1, (N , 1))
-            samples = np.hstack([S1_vec])
-            PolyDiscreet = mypoly.get_polyfit(samples)
-            PolyDiscreet = np.reshape(PolyDiscreet, (N))
-            fig = go.Figure(fig)
-            fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-            fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
-            fig.update_layout(layout)
+                DOE = mypoly.get_points()
+                N = 20
+                s1_samples = np.linspace(DOE[0, 0], DOE[-1, -1], N)
+                [S1] = np.meshgrid(s1_samples)
+                S1_vec = np.reshape(S1, (N , 1))
+                samples = np.hstack([S1_vec])
+                PolyDiscreet = mypoly.get_polyfit(samples)
+                PolyDiscreet = np.reshape(PolyDiscreet, (N))
+                fig = go.Figure(fig)
+                fig.update_xaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+                fig.update_yaxes(color='black', linecolor='black', showline=True, tickcolor='black', ticks='outside')
+                fig.update_layout(layout)
 
-            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
-            fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
-            if len(fig.data) == 4:
-                fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
-                fig.plotly_restyle({'x': S1      , 'y': PolyDiscreet}, 3)
-            else:
-                fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
+                fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 0)
+                fig.plotly_restyle({'x': [[]], 'y': [[]], 'z': [[]]}, 1)
+                if len(fig.data) == 4:
+                    fig.plotly_restyle({'x': DOE[:,0], 'y': y_true}, 2)
+                    fig.plotly_restyle({'x': S1      , 'y': PolyDiscreet}, 3)
+                else:
+                    fig.add_trace(go.Scatter(x=DOE[:,0], y=y_true, mode='markers', name='Training samples',
                                         marker=dict(color='rgb(135,206,250)', size=15, opacity=0.5,
                                                     line=dict(color='rgb(0,0,0)', width=1))))
-                fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='Polynomial approx.',line_color='rgb(178,34,34)'))
+                    fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='Polynomial approx.',line_color='rgb(178,34,34)'))
 
                 return fig,default
 
+            else:
+                return fig,hide
         else:
-            return fig,hide
+            raise PreventUpdate
     else:
         raise PreventUpdate
