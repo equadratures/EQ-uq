@@ -1,0 +1,15 @@
+dash
+dash_core_components
+dash_html_components
+dash_bootstrap_components
+dash_daq
+dash-extensions
+flask_caching
+plotly
+numpy
+git+git://github.com/equadratures/equadratures@17f15fa#egg=equadratures
+gunicorn
+pylibmc
+func-timeout
+whitenoise
+numexpr
