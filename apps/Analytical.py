@@ -271,6 +271,7 @@ left_side = [
     dbc.Row(dbc.Col(
         dbc.Button('Compute Polynomial', id='CU_button', n_clicks=0, className='ip_buttons',color='primary',disabled=True)
     )),
+    dbc.Row([dbc.Col(dbc.Alert(id='poly-warning',color='danger',is_open=False), width=3)]),
     dbc.Row(
         [
             dbc.Col(mean_form),
@@ -308,7 +309,7 @@ tooltips = html.Div(
     [
         dbc.Tooltip("Maximum of 5 parameters",target="AP_button"),
         dbc.Tooltip("The variables should be of the form x1,x2...",target="input_func"),
-        dbc.Tooltip('Set basis and Input Function first',target="CU_button"),
+        # dbc.Tooltip('Set basis and Input Function first',target="CU_button"),
     ]
 )
 
@@ -438,7 +439,7 @@ def addInputs(n_clicks, children):
         [
             dbc.Label('Order'),
             dbc.Input(bs_size="sm", id={'type': 'order', 'index': n_clicks}, type="number",
-                              value=np.nan,
+                              value=np.nan,min=0,
                               placeholder="Order",
                               debounce=True, className='ip_field')
         ]
@@ -475,17 +476,17 @@ def addInputs(n_clicks, children):
 ###################################################################
 # Callback for disabling Cardinality Check button
 ###################################################################
-@app.callback(
-    Output('basis_button','disabled'),
-    [
-    Input('AP_button','n_clicks')
-        ]
-)
-def CheckifAPClicked(n_clicks):
-    if n_clicks>0:
-        return False
-    else:
-        return True
+# @app.callback(
+#     Output('basis_button','disabled'),
+#     [
+#     Input('AP_button','n_clicks'),
+#         ]
+# )
+# def CheckifAPClicked(n_clicks):
+#     if n_clicks>0:
+#         return False
+#     else:
+#         return True
 
 ###################################################################
 # Callback for disabling Compute Uncertainty button
@@ -495,7 +496,7 @@ def CheckifAPClicked(n_clicks):
     [
         Input('basis_button','n_clicks'),
         Input('input_func','value')
-    ]
+    ],
 )
 def CheckifCCClickd(n_clicks,input_val):
     if n_clicks>0 and input_val is not None:
@@ -539,6 +540,7 @@ def UpdateInputField(value):
 @app.callback(
     ServersideOutput('ParamsObject', 'data'),
     Output('ndims','data'),
+    Output('basis_button','disabled'),
     [
         Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
@@ -551,31 +553,39 @@ def UpdateInputField(value):
 )
 def ParamListUpload(shape_parameter_A, shape_parameter_B, distribution, max_val, min_val, order):
     i = len(distribution)
+    # input_list=['shape_parameter_A','shape_parameter_B','distribution','max_val','min_val','order']
     param_list = []
-    Show=False
-    Block=True
     if i > 0:
+        # ctx = dash.callback_context
+        # id = ctx.triggered[0]['prop_id'].split('.')[0]
+        # idx = ast.literal_eval(id)['type']
+        # if idx in input_list:
+        #     print(idx)
         for j in range(i):
             if distribution[j] in MEAN_VAR_DIST:
-                param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
-                                     , shape_parameter_B=shape_parameter_B[j], lower=min_val[j], upper=max_val[j],
-                                     order=order[j])
+                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+                                             , shape_parameter_B=shape_parameter_B[j], lower=min_val[j],
+                                             upper=max_val[j],
+                                             order=order[j])
 
             elif distribution[j] in ALL_4:
-                param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                      , shape_parameter_B=shape_parameter_B[j], lower=min_val[j], upper=max_val[j],
                                      order=order[j])
 
 
             elif distribution[j] in SHAPE_PARAM_DIST:
-                param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j],
+                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j],
                                      order=order[j])
 
             elif distribution[j] in LOWER_UPPER_DIST:
-                param = eq.Parameter(distribution=distribution[j], lower=min_val[j], upper=max_val[j], order=order[j])
+                    param = eq.Parameter(distribution=distribution[j], lower=min_val[j], upper=max_val[j], order=order[j])
 
+            # print(param)
             param_list.append(param)
-    return param_list,len(param_list)
+    return param_list,len(param_list),False
+
+
 
 
 ###################################################################
@@ -769,7 +779,6 @@ def SetBasis(param_obj,n_clicks,basis_select, q_val, levels, growth_rule):
 )
 def PlotBasis(params, mybasis, method, ndims):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    print(changed_id)
     if 'BasisObject' in changed_id:
         if mybasis is not None:
             # Fit a poly just to get points (this isn't used elsewhere)
@@ -885,6 +894,38 @@ def SetModel(params,mybasis,method,expr,ndims):
 ###################################################################
 # Callback to plot Sobol' indices 
 ###################################################################
+
+@app.callback(
+    Output('sobol_order','options'),
+    Input('CU_button','n_clicks'),
+    State('ndims','data'),
+    State('sobol_order','options')
+,
+prevent_intial_call=True
+)
+def SobolCheck(n_clicks,ndims,options):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'CU_button' in changed_id:
+        opt=options
+        if ndims==1:
+            return options
+        elif ndims==2:
+            opt[0]['disabled']=False
+            opt[1]['disabled']=False
+            opt[2]['disabled']=True
+            return opt
+        elif ndims>=3:
+            opt[0]['disabled'] = False
+            opt[1]['disabled'] = False
+            opt[2]['disabled'] = False
+            return opt
+        else:
+            raise PreventUpdate
+    else:
+        raise PreventUpdate
+
+
+
 @app.callback(
     Output('Sobol_plot', 'figure'),
     Output('sobol_order','disabled'),
@@ -916,24 +957,34 @@ def Plot_Sobol(mypoly, order, ndims, fig):
                 fig=go.Figure(layout=layout)
                 if order==1:
                     fig.update_yaxes(title=r'$S_{i}$')
-                    labels = [r'$X_%d$' % i for i in range((ndims))]
+                    labels = [r'S%d' % i for i in range((ndims))]
                     to_plot = [sobol_indices[(i,)] for i in range((ndims))]
+                    print(labels)
                 elif order==2:
                     fig.update_yaxes(title=r'$S_{ij}$')
-                    labels = [r'$S_{%d%d}$' % (i, j) for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
+                    labels = [r'S{%d%d}' % (i, j) for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
                     to_plot = [sobol_indices[(i, j)] for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
+                    print(labels)
                 elif order==3:
                     fig.update_yaxes(title=r'$S_{ijk}$')
-                    labels = [r'$S_{%d%d%d}$' % (i, j, k) for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
+                    labels = [r'S{%d%d%d}' % (i, j, k) for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
                                   range(j + 1, int(ndims))]
                     to_plot = [sobol_indices[(i, j, k)] for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
                                    range(j + 1, int(ndims))]
-                fig.update_xaxes(nticks=len(sobol_indices),tickvals=labels,tickangle=45)
+                    print(labels)
+                # fig.update_xaxes(nticks=len(sobol_indices),tickvals=labels,tickangle=45)
                 data=go.Bar(
                 x=np.arange(len(sobol_indices)),
                 y=to_plot,marker_color='LightSkyBlue',marker_line_width=2,marker_line_color='black')
                 fig = go.Figure(layout=layout,data=data)
-                fig.update_layout(uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30)
+                fig.update_layout(
+                    xaxis=dict(
+                        tickmode='array',
+                        tickvals=to_plot,
+                        ticktext=labels
+                    ),
+                    uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30
+                )
 
         return fig, disabled
     else:

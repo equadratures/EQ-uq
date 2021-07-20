@@ -22,7 +22,7 @@ not exactly known. **Figure 1** represents the same. The uncertainty in our outp
 parameters $s_1$ and $s_2$ when propagated through our model $f(s_1, s_2)$.
 
 <figure style="width:60%">
-<img alt="Polynomial chaos" src="model.png" />
+<img alt="Polynomial chaos" src="static/model.png" />
 </figure>
 
 ### Motivation for using Equadratures
