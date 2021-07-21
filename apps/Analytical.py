@@ -28,7 +28,16 @@ ALL_4 = ["beta", "truncated-gaussian"]
 # Collapsable more info card
 ###################################################################
 info_text = r'''
-Instructions go here...
+This app uses Equadratures to compute unceratinty in the user-defined data. In this model user 
+can define parameters, select basis function and create a polynomial.
+
+#### Instructions
+1. Click **add parameter** button in parameter definition card to add parameters. Choose the type of distribution and on basis of **selected distribution**, input the required fields.
+2. To visualize the defined parameters **probability density function** press the toggle button to obtain the plot in Probability density function card
+3. Select the **basis** type from basis selection card and input required fields based on the basis selected (For example sparse-grid requires q-val, order and growth as input)
+4. Use **Set Basis** button to compute the **cardinality** and get insights regarding the basis function chosen in the basis selection card.
+5. Set the solver method for Polynomial and enter the **input function** in parameter definition card for computing **statistical moments**, use sobol dropdown to gain insights regarding **sensitivity analysis**
+
 '''
 
 info = html.Div(
@@ -821,7 +830,7 @@ def PlotBasis(params, mybasis, method, ndims):
                           ticks='outside',
                           zerolinecolor="white"),
                       zaxis=dict(
-                          title=r'x_3',
+                          title=r'$x_3$',
                           backgroundcolor="rgb(230, 230,200)",
                           gridcolor="white",
                           showbackground=False,
@@ -957,21 +966,21 @@ def Plot_Sobol(mypoly, order, ndims, fig):
                 fig=go.Figure(layout=layout)
                 if order==1:
                     fig.update_yaxes(title=r'$S_{i}$')
-                    labels = [r'S%d' % i for i in range((ndims))]
+                    labels = [r'$S_%d$' % i for i in range(1,(ndims)+1)]
                     to_plot = [sobol_indices[(i,)] for i in range((ndims))]
-                    print(labels)
+
                 elif order==2:
                     fig.update_yaxes(title=r'$S_{ij}$')
-                    labels = [r'S{%d%d}' % (i, j) for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
+                    labels = [r'$S_{%d%d}$' % (i, j) for i in range(1,int(ndims)+1) for j in range(i + 1, int(ndims)+1)]
                     to_plot = [sobol_indices[(i, j)] for i in range(int(ndims)) for j in range(i + 1, int(ndims))]
-                    print(labels)
+
                 elif order==3:
                     fig.update_yaxes(title=r'$S_{ijk}$')
-                    labels = [r'S{%d%d%d}' % (i, j, k) for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
-                                  range(j + 1, int(ndims))]
+                    labels = [r'$S_{%d%d%d}$' % (i, j, k) for i in range(1,int(ndims)+1) for j in range(i + 1, int(ndims)+1) for k in
+                                  range(j + 1, int(ndims)+1)]
                     to_plot = [sobol_indices[(i, j, k)] for i in range(int(ndims)) for j in range(i + 1, int(ndims)) for k in
                                    range(j + 1, int(ndims))]
-                    print(labels)
+
                 # fig.update_xaxes(nticks=len(sobol_indices),tickvals=labels,tickangle=45)
                 data=go.Bar(
                 x=np.arange(len(sobol_indices)),
@@ -980,10 +989,11 @@ def Plot_Sobol(mypoly, order, ndims, fig):
                 fig.update_layout(
                     xaxis=dict(
                         tickmode='array',
-                        tickvals=to_plot,
+                        tickvals=np.arange(len(sobol_indices)),
                         ticktext=labels
                     ),
-                    uniformtext_minsize=8, uniformtext_mode='hide', xaxis_tickangle=-30
+                    # uniformtext_minsize=8, uniformtext_mode='hide',
+                    xaxis_tickangle=-30
                 )
 
         return fig, disabled

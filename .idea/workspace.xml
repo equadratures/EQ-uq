@@ -4,7 +4,6 @@
     <list default="true" id="b8ec4f1d-900e-4098-ab40-6e5d3a76e27a" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/apps/Analytical.py" beforeDir="false" afterPath="$PROJECT_DIR$/apps/Analytical.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/index.py" beforeDir="false" afterPath="$PROJECT_DIR$/index.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -94,7 +93,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/apps/Analytical.py</url>
-          <line>1042</line>
+          <line>1052</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
       </breakpoints>
