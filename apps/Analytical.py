@@ -157,7 +157,7 @@ BASIS_CARD = dbc.Card(
             dbc.Row(
                 [
                 dbc.Col(
-                    dbc.Button('Set basis', id='basis_button', n_clicks=0, className='ip_buttons',color='primary',disabled=True),
+                    dbc.Button('Set basis', id='basis_button', n_clicks=0, className='ip_buttons',color='primary',disabled=False),
                 width=2),
                 dbc.Col(
                     dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='Cardinality...', className='ip_field',disabled=True), 
@@ -294,7 +294,8 @@ left_side = [
 
 right_side = dbc.Spinner(
     [
-        dcc.Graph(id='plot_poly_3D', style={'width': 'inherit','height':'60vh'}, figure=polyfig3D)
+        dcc.Graph(id='plot_poly_3D', style={'width': 'inherit','height':'60vh'}, figure=polyfig3D),
+        dbc.Alert(id='plot_poly_info',color='primary',is_open=False)
     ], color='primary',type='grow',show_initially=False
 )
 
@@ -458,8 +459,8 @@ def addInputs(n_clicks, children):
         [
             dbc.Label('Plot PDF'),
             dbc.Checklist(
-                options=[{"value": "val_{}".format(n_clicks)}],
-                switch=True, value=[0], id={"type": "radio_pdf","index": n_clicks}
+                options=[{"value": "val_{}".format(n_clicks),'disabled':True}],
+                switch=True, value=[0], id={"type": "radio_pdf","index": n_clicks},
             )
         ]
     )
@@ -485,17 +486,18 @@ def addInputs(n_clicks, children):
 ###################################################################
 # Callback for disabling Cardinality Check button
 ###################################################################
-# @app.callback(
-#     Output('basis_button','disabled'),
-#     [
-#     Input('AP_button','n_clicks'),
-#         ]
-# )
-# def CheckifAPClicked(n_clicks):
-#     if n_clicks>0:
-#         return False
-#     else:
-#         return True
+@app.callback(
+    Output('basis_button','disabled'),
+    [
+    Input('AP_button','n_clicks'),
+        ]
+)
+def CheckifAPClicked(n_clicks):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'AP_button' in changed_id:
+        return False
+    else:
+        return True
 
 ###################################################################
 # Callback for disabling Compute Uncertainty button
@@ -504,14 +506,24 @@ def addInputs(n_clicks, children):
     Output('CU_button','disabled'),
     [
         Input('basis_button','n_clicks'),
-        Input('input_func','value')
+        Input('input_func','value'),
+        Input('AP_button','n_clicks')
     ],
 )
-def CheckifCCClickd(n_clicks,input_val):
-    if n_clicks>0 and input_val is not None:
-        return False
-    else:
+def CheckifCCClickd(n_clicks,input_val,ap):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    print('id',changed_id)
+    if 'AP_button' in changed_id:
         return True
+    else:
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'basis_button' or 'input_func' in changed_id:
+            if n_clicks>0 and input_val is not None:
+                return False
+            else:
+                return True
+        else:
+            return True
 
 ###################################################################
 # Callback to map input boxes to distributions
@@ -549,7 +561,6 @@ def UpdateInputField(value):
 @app.callback(
     ServersideOutput('ParamsObject', 'data'),
     Output('ndims','data'),
-    Output('basis_button','disabled'),
     [
         Input({'type': 'params', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'params_2', 'index': dash.dependencies.ALL}, 'value'),
@@ -557,42 +568,55 @@ def UpdateInputField(value):
         Input({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
         Input({'type': 'order', 'index': dash.dependencies.ALL}, 'value'),
+        Input('basis_button','n_clicks'),
     ],
     prevent_intial_call=True
 )
-def ParamListUpload(shape_parameter_A, shape_parameter_B, distribution, max_val, min_val, order):
+def ParamListUpload(shape_parameter_A, shape_parameter_B, distribution, max_val, min_val, order,basis_click):
     i = len(distribution)
-    # input_list=['shape_parameter_A','shape_parameter_B','distribution','max_val','min_val','order']
     param_list = []
-    if i > 0:
-        # ctx = dash.callback_context
-        # id = ctx.triggered[0]['prop_id'].split('.')[0]
-        # idx = ast.literal_eval(id)['type']
-        # if idx in input_list:
-        #     print(idx)
-        for j in range(i):
-            if distribution[j] in MEAN_VAR_DIST:
-                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'basis_button' in changed_id:
+        if i > 0:
+            for j in range(i):
+                if distribution[j] in MEAN_VAR_DIST:
+                    if (shape_parameter_A[j] and shape_parameter_B[j] and order[j]) is None:
+                        return None,None
+                    if order[j]<0:
+                        return None,None
+                    else:
+                        param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                              , shape_parameter_B=shape_parameter_B[j], lower=min_val[j],
                                              upper=max_val[j],
                                              order=order[j])
 
-            elif distribution[j] in ALL_4:
-                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
+                elif distribution[j] in ALL_4:
+                    if (shape_parameter_A[j] and shape_parameter_B[j] and min_val[j] and max_val[j] and order[j]) is None:
+                        return None,None
+                    elif min_val[j]>max_val[j]:
+                        return None,None
+                    else:
+                        param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j]
                                      , shape_parameter_B=shape_parameter_B[j], lower=min_val[j], upper=max_val[j],
                                      order=order[j])
 
-
-            elif distribution[j] in SHAPE_PARAM_DIST:
-                    param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j],
+                elif distribution[j] in SHAPE_PARAM_DIST:
+                    if (shape_parameter_A[j] and order[j]) is None:
+                        return None,None
+                    else:
+                        param = eq.Parameter(distribution=distribution[j], shape_parameter_A=shape_parameter_A[j],
                                      order=order[j])
 
-            elif distribution[j] in LOWER_UPPER_DIST:
-                    param = eq.Parameter(distribution=distribution[j], lower=min_val[j], upper=max_val[j], order=order[j])
+                elif distribution[j] in LOWER_UPPER_DIST:
+                    if (min_val[j] and max_val[j] and order[j]) is None:
+                        return None,None
+                    else:
+                        param = eq.Parameter(distribution=distribution[j], lower=min_val[j], upper=max_val[j], order=order[j])
 
-            # print(param)
-            param_list.append(param)
-    return param_list,len(param_list),False
+                param_list.append(param)
+        return param_list,len(param_list)
+    else:
+        raise PreventUpdate
 
 
 
@@ -763,16 +787,19 @@ def SetBasis(param_obj,n_clicks,basis_select, q_val, levels, growth_rule):
     # Compute subspace (if button has just been pressed)
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'basis_button' in changed_id:
-        if basis_select is None:
-            return 'Error...',None,True,'No basis value selected'
-        elif basis_select=='sparse-grid' and (levels or growth_rule) is None:
+        if param_obj is not None:
+            if basis_select is None:
+                return 'Error...',None,True,'No basis value selected'
+            elif basis_select=='sparse-grid' and (levels or growth_rule) is None:
                 return 'ERROR...',None,True,'Enter the required values'
+            else:
+                basis_ord=[]
+                for elem in param_obj:
+                    basis_ord.append(elem.order)
+                mybasis = Set_Basis(basis_val=basis_select, order=basis_ord, level=levels, q_val=q_val, growth_rule=growth_rule)
+                return mybasis.get_cardinality(), mybasis, False, None
         else:
-            basis_ord=[]
-            for elem in param_obj:
-                basis_ord.append(elem.order)
-            mybasis = Set_Basis(basis_val=basis_select, order=basis_ord, level=levels, q_val=q_val, growth_rule=growth_rule)
-            return mybasis.get_cardinality(), mybasis, False, None
+            return 'ERROR...',None,True,'Incorrect parameter values'
     else:
         raise PreventUpdate
 
@@ -788,7 +815,7 @@ def SetBasis(param_obj,n_clicks,basis_select, q_val, levels, growth_rule):
 )
 def PlotBasis(params, mybasis, method, ndims):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    if 'BasisObject' in changed_id:
+    if 'ParamsObject' in changed_id:
         if mybasis is not None:
             # Fit a poly just to get points (this isn't used elsewhere)
             mypoly = Set_Polynomial(params, mybasis, method)
@@ -1032,6 +1059,8 @@ def Plot_Sobol(mypoly, order, ndims, fig):
 @app.callback(
     Output('plot_poly_3D', 'figure'),
     Output('plot_poly_3D','style'),
+    Output('plot_poly_info','is_open'),
+    Output('plot_poly_info','children'),
     Input('PolyObject', 'data'),
     Trigger('CU_button', 'n_clicks'),
     Input('ndims','data'),
@@ -1061,7 +1090,7 @@ def Plot_poly_3D(mypoly, ndims,fig):
                 fig.data = fig.data[0:2]
                 fig.plotly_restyle({'x': S1, 'y': S2, 'z': PolyDiscreet}, 0)
                 fig.plotly_restyle({'x': DOE[:, 0], 'y': DOE[:, 1], 'z': y_true}, 1)
-                return fig,default
+                return fig,default,False,None
             elif ndims==1:
                 layout = {"xaxis": {"title": r'$x_1$'}, "yaxis": {"title": r'$f(x_1)$'},
                       'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 60},
@@ -1090,10 +1119,16 @@ def Plot_poly_3D(mypoly, ndims,fig):
                                                     line=dict(color='rgb(0,0,0)', width=1))))
                     fig.add_trace(go.Scatter(x=S1,y=PolyDiscreet,mode='lines',name='Polynomial approx.',line_color='rgb(178,34,34)'))
 
-                return fig,default
+                return fig,default,False,None
 
             else:
-                return fig,hide
+                added_text='''
+                The Polyfit Plot exists for only **1D** and **2D** Polynomials, as we move to higher dimensions, 
+                visualisation of data becomes computationally expensive and hence, we stick to 2D or 3D plots
+                '''
+                added_text = dcc.Markdown(convert_latex(added_text), dangerously_allow_html=True,
+                                         style={'text-align': 'justify'})
+                return fig,hide,True,added_text
         else:
             raise PreventUpdate
     else:

@@ -93,7 +93,7 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/apps/Analytical.py</url>
-          <line>1052</line>
+          <line>1081</line>
           <option name="timeStamp" value="2" />
         </line-breakpoint>
       </breakpoints>
