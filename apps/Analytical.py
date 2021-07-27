@@ -1,3 +1,5 @@
+import io
+
 import dash
 import dash_html_components as html
 import dash_core_components as dcc
@@ -5,6 +7,10 @@ import dash_bootstrap_components as dbc
 from dash_extensions.enrich import Dash, ServersideOutput, Output, Input, State, Trigger
 from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
+import pandas as pd
+import base64
+import dash_table
+from dash_table.Format import Format, Scheme, Trim
 
 import numpy as np
 import equadratures as eq
@@ -23,6 +29,16 @@ MEAN_VAR_DIST = ["gaussian"]
 LOWER_UPPER_DIST = ["uniform"]
 SHAPE_PARAM_DIST = ["lognormal"]
 ALL_4 = ["beta", "truncated-gaussian"]
+
+
+model_selection=dcc.Dropdown(
+    options=[
+        {'label': 'Analytical Model', 'value': 'analytical'},
+        {'label': 'Offline Model', 'value': 'offline'},
+        ],
+    className="m-1", id='model_select',
+    value='analytical', clearable=False)
+
 
 ###################################################################
 # Collapsable more info card
@@ -135,6 +151,11 @@ growth_dropdown = dcc.Dropdown(
     disabled=True,
 )
 
+DOE_download= html.Div([
+    dbc.Button("Download DOE",id='download_button',style={'display':'None'},color='primary'),
+    dcc.Download(id='download_DOE_data')
+])
+
 BASIS_CARD = dbc.Card(
     [
     dbc.CardHeader(dcc.Markdown("**Basis Selection**")),
@@ -162,7 +183,8 @@ BASIS_CARD = dbc.Card(
                 dbc.Col(
                     dbc.Input(bs_size="sm", id='op_box', type="number", value='', placeholder='Cardinality...', className='ip_field',disabled=True), 
                 width=3),
-                dbc.Col(dbc.Alert(id='compute-warning',color='danger',is_open=False),width='auto')
+                dbc.Col(dbc.Alert(id='compute-warning',color='danger',is_open=False),width='auto'),
+                dbc.Col(DOE_download,width=3)
                 ]
             ),
             dbc.Row(dbc.Col(
@@ -224,6 +246,34 @@ method_dropdown = dcc.Dropdown(
 )
 
 
+Upload_region=html.Div([
+    dcc.Upload(
+        id='upload_data',
+        children=html.Div([
+            'Upload model evalutions ',
+            html.A('Select Files',style={'color':'blue'},id='filename_append'),
+
+        ]),
+    ),
+])
+dataset_info = html.Div(
+    [
+    dbc.Button("View Dataset",color="primary",id="dataset-info-open",className="py-0",disabled=True),
+    dbc.Modal(
+        [
+            dbc.ModalHeader(dcc.Markdown('',id='dataset_filename')),
+            dbc.ModalBody([dash_table.DataTable(data=[],columns=[],id='upload_data_table',
+                style_table={'overflowX': 'auto','overflowY':'auto','height':'35vh'},
+                editable=True,fill_width=True,page_size=20)],id='dataset_data'),
+            dbc.ModalFooter(dbc.Button("Close", id="dataset-info-close", className="py-0", color='primary')),
+        ],
+        id="dataset-info",
+        scrollable=True,size='lg'
+    ),
+    ],
+id='dataset-div'
+)
+
 mean_form = dbc.FormGroup(
     [
         dbc.Label("Mean",html_for='mean'),
@@ -276,10 +326,16 @@ sobol_form = dbc.FormGroup(
 sobol_plot = dcc.Graph(id='Sobol_plot', style={'width': 'inherit', 'height':'40vh'})
 
 left_side = [
-    dbc.Row(dbc.Col(method_dropdown,width=6)),
-    dbc.Row(dbc.Col(
+    dbc.Row([dbc.Col(method_dropdown,width=6),
+            dbc.Col(
+                dbc.Spinner([Upload_region],show_initially=False,color='primary')
+            )
+            ]),
+    dbc.Row([dbc.Col(
         dbc.Button('Compute Polynomial', id='CU_button', n_clicks=0, className='ip_buttons',color='primary',disabled=True)
-    )),
+    ),
+    dbc.Col(dataset_info,width='auto')
+    ]),
     dbc.Row([dbc.Col(dbc.Alert(id='poly-warning',color='danger',is_open=False), width=3)]),
     dbc.Row(
         [
@@ -329,10 +385,13 @@ tooltips = html.Div(
 
 layout = dbc.Container(
     [
-        html.H2("Uncertainty quantification of an analytical model"),
+        dbc.Row([
+            dbc.Col(model_selection,width=4)
+        ]),
+        html.H2("Uncertainty quantification of an analytical model",id='main_text'),
         dbc.Row(
             [
-                dbc.Col(dcc.Markdown('Define an analytical model, and its uncertain input parameters. Then, use polynomial chaos to compute output uncertainties and sensitivities.'),width='auto'),
+                dbc.Col(dcc.Markdown('Define an analytical model, and its uncertain input parameters. Then, use polynomial chaos to compute output uncertainties and sensitivities.',id='info_text'),width='auto'),
                 dbc.Col(info,width='auto')
             ], align='center', style={'margin-bottom':'10px'}
         ),
@@ -353,6 +412,7 @@ layout = dbc.Container(
         dcc.Store(id='ParamsObject'),
         dcc.Store(id='PolyObject'),
         dcc.Store(id='BasisObject'),
+        dcc.Store(id='UploadedDF'),
         tooltips
     ], fluid=True
 )
@@ -367,10 +427,36 @@ layout = dbc.Container(
     Input('basis_button','n_clicks')
 )
 def check_param(n_clicks,ndims):
-    if ndims > 4:
+    if n_clicks > 4:
         return True
     else:
         return False
+
+@app.callback(
+    Output('input_func','style'),
+    Output('upload_data','style'),
+    Output('dataset-div','style'),
+    Input('model_select','value')
+)
+def InputRequired(model):
+    if model=='analytical':
+        return None,{'display':'None'},{'display':'None'}
+    else:
+        style = {
+            'width': '100%',
+            'height': '60px',
+            'lineHeight': '60px',
+            'borderWidth': '1px',
+            'borderStyle': 'dashed',
+            'borderRadius': '5px',
+            'textAlign': 'center',
+            'margin': '10px'
+        }
+        return {'display':'None'},style,None
+
+
+
+
 
 ###################################################################
 # Callback for adding parameter to param definition card
@@ -396,17 +482,17 @@ def addInputs(n_clicks, children):
         ],
         placeholder='Select a distribution', value='uniform', clearable=False,
         className="m-1", id={'type': 'drop-1', 'index': n_clicks},
-    )
+        )
 
     dist_form = dbc.Form(
-        [
+            [
             dbc.Label('Distribution', html_for='drop-1'),
             dist_dropdown,   
-        ]
-    ) 
+    ]
+    )
 
     params_form = dbc.Form(
-        [
+            [
             dbc.Label('Statistical moments/shape parameters',html_for='params'),
             dbc.Row(
                 [
@@ -483,6 +569,22 @@ def addInputs(n_clicks, children):
 
     return children,None
 
+
+
+
+@app.callback(
+    Output('main_text','children'),
+    Output('info_text','children'),
+    Input('model_select','value')
+)
+def MainText(model):
+    if model=='analytical':
+        return 'Uncertainty quantification of an analytical model','Define an analytical model, and its uncertain input parameters. Then, use polynomial chaos to compute output uncertainties and sensitivities.'
+    else:
+        return 'Uncertainty quantification of an offline model','Define an offline model, and its uncertain input parameters.Download the DOE points and then, use polynomial chaos to compute output uncertainties and sensitivities at your simulation results.'
+
+
+
 ###################################################################
 # Callback for disabling Cardinality Check button
 ###################################################################
@@ -499,6 +601,122 @@ def CheckifAPClicked(n_clicks):
     else:
         return True
 
+
+@app.callback(
+    Output('download_button','disabled'),
+    Input('BasisObject','data'),
+)
+def ShowDownload(basis):
+    if basis is not None:
+        return False
+    else:
+        return True
+
+@app.callback(
+    Output('download_DOE_data','data'),
+    Output('download_button','style'),
+    Input('download_button','n_clicks'),
+    Input('model_select','value'),
+    Input('ParamsObject', 'data'),
+    Input('BasisObject', 'data'),
+    Input('solver_method', 'value'),
+    prevent_initial_call = True
+)
+def DOEdownload(n_clicks,model,params,basis,method):
+    if model=='offline':
+        if basis is not None:
+            mypoly = Set_Polynomial(params, basis, method)
+            DOE = mypoly.get_points()
+            DOE=pd.DataFrame(DOE)
+            changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+            if 'download_button' in changed_id:
+                return dcc.send_data_frame(DOE.to_csv, "DOE.csv"), None
+            else:
+                raise PreventUpdate
+        else:
+            return None,None
+    if model=='analytical':
+        return None,{'display':'None'}
+    else:
+        raise PreventUpdate
+
+def ParseData(content,filename):
+    content_type,content_string=content.split(',')
+
+    if 'csv' in filename:
+        decoded = base64.b64decode(content_string)
+        df=pd.read_csv(io.StringIO(decoded.decode('utf-8'))).drop(['Unnamed: 0'],axis=1)
+    elif 'xls' in filename:
+        decoded = base64.b64decode(content_string)
+        df=pd.read_excel(io.BytesIO(decoded))
+    elif 'npy' in filename:
+        print(content_string)
+        print(type(content_string))
+        decoded=base64.b64decode(content_string)
+        print(type(decoded))
+        print(decoded)
+        df=pd.read_csv(ast.literal_eval(decoded).decode())
+    else:
+        raise PreventUpdate
+    return df
+
+@app.callback(
+    ServersideOutput('UploadedDF','data'),
+    Output('filename_append','children'),
+    Output('dataset-info-open','disabled'),
+    Input('model_select','value'),
+    Input('upload_data','filename'),
+    Input('upload_data','contents')
+)
+def ParsedData(model,filename,content):
+    if model=='offline':
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'upload_data' in changed_id:
+            try:
+                df=ParseData(content,filename)
+            except Exception as e:
+                return None,[],True
+            children=[filename]
+            return df,children,False
+        else:
+            raise PreventUpdate
+    else:
+        raise PreventUpdate
+
+@app.callback(
+    Output("dataset-info", "is_open"),
+    [Input("dataset-info-open", "n_clicks"), Input("dataset-info-close", "n_clicks")],
+    [State("dataset-info", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
+
+@app.callback(
+    Output('dataset_filename','children'),
+    Output('upload_data_table','data'),
+    Output('upload_data_table','columns'),
+    Input('filename_append','children'),
+    Input("dataset-info", "is_open"),
+    Input("UploadedDF",'data')
+)
+def DatasetInfo(filename,is_open,df):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'dataset-info' in changed_id:
+        if is_open:
+            data=df.to_dict('records')
+            columns = [
+                {'name': i, 'id': i, 'deletable': True, 'type': 'numeric', 'format': Format(precision=4)}
+                for i in df.columns]
+            return filename,data,columns
+        else:
+            raise PreventUpdate
+    else:
+        raise PreventUpdate
+
+
+
 ###################################################################
 # Callback for disabling Compute Uncertainty button
 ###################################################################
@@ -507,21 +725,28 @@ def CheckifAPClicked(n_clicks):
     [
         Input('basis_button','n_clicks'),
         Input('input_func','value'),
-        Input('AP_button','n_clicks')
+        Input('AP_button','n_clicks'),
+        Input('model_select','value'),
+        Input('UploadedDF','data')
     ],
 )
-def CheckifCCClickd(n_clicks,input_val,ap):
+def CheckifCCClickd(n_clicks,input_val,ap,model,uploaded):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    print('id',changed_id)
     if 'AP_button' in changed_id:
         return True
     else:
         changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
         if 'basis_button' or 'input_func' in changed_id:
-            if n_clicks>0 and input_val is not None:
-                return False
+            if model=='analytical':
+                if n_clicks>0 and input_val is not None:
+                    return False
+                else:
+                    return True
             else:
-                return True
+                if n_clicks>0 and uploaded is not None:
+                    return False
+                else:
+                    return True
         else:
             return True
 
@@ -888,42 +1113,68 @@ def PlotBasis(params, mybasis, method, ndims):
     Output('r2_score', 'value'),
     Output('input-warning','is_open'),
     Output('input-warning','children'),
+    Output('poly-warning','is_open'),
+    Output('poly-warning','children'),
     Trigger('CU_button', 'n_clicks'),
     Input('ParamsObject', 'data'),
     Input('BasisObject', 'data'),
     Input('solver_method', 'value'),
+    Input('model_select','value'),
+    Input('UploadedDF','data'),
     State('input_func', 'value'),
     State('ndims', 'data'),
     prevent_initial_call=True
 )
-def SetModel(params,mybasis,method,expr,ndims):
+def SetModel(params,mybasis,method,model,data,expr,ndims):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'CU_button' in changed_id:
-        # Create poly 
         mypoly = Set_Polynomial(params, mybasis, method)
+        if model=='analytical':
         # Parse input function
-        x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, ndims + 1)]
-        def f(op):
-            for i in range(ndims):
-                exec(x[i])
-            return ne.evaluate(expr)
+            x = [r"x{} = op[{}]".format(j, j - 1) for j in range(1, ndims + 1)]
+            def f(op):
+                for i in range(ndims):
+                    exec(x[i])
+                return ne.evaluate(expr)
 
         # Evaluate model
-        try:
-            mypoly.set_model(f)
-        except KeyError or ValueError:
-            return None,None,None,True,"Incorrect variable naming",True
+            try:
+                mypoly.set_model(f)
+            except KeyError or ValueError:
+                return None,None,None,True,"Incorrect variable naming",True,False,None
 
         # Get mean and variance
-        mean, var = mypoly.get_mean_and_variance()
-        DOE = mypoly.get_points()
+            mean, var = mypoly.get_mean_and_variance()
+            DOE = mypoly.get_points()
 
         # Get R2 score
-        y_true = mypoly._model_evaluations
-        y_pred = mypoly.get_polyfit(DOE).squeeze()
-        y_pred = y_pred.reshape(-1, 1)
-        r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
-        return mypoly, mean, var, r2_score, False,None ###
+            y_true = mypoly._model_evaluations
+            y_pred = mypoly.get_polyfit(DOE).squeeze()
+            y_pred = y_pred.reshape(-1, 1)
+            r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
+            return mypoly, mean, var, r2_score, False,None,False,None ###
+        else:
+            data=data.to_numpy()
+            try:
+                mypoly.set_model(data)
+            except KeyError:
+                return None,None,None,None,False,True,"Incorrect Model evaluations"
+            except AssertionError:
+                return None,None,None,True,None,False,True,"Incorrect Data uploaded"
+            except ValueError:
+                return None, None, None, None, False, True, "Incorrect Model evaluations"
+            except IndexError:
+                return None, None, None, None, False, True, "Incorrect Model evaluations"
+
+
+            mean, var = mypoly.get_mean_and_variance()
+            DOE=mypoly.get_points()
+
+            y_true=data.squeeze()
+            y_pred = mypoly.get_polyfit(DOE).squeeze()
+            y_pred = y_pred.reshape(-1, 1)
+            r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
+            return mypoly, mean, var, r2_score, False, None  ###
     else:
         raise PreventUpdate
 

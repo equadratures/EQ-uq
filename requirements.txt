@@ -13,3 +13,5 @@ pylibmc
 func-timeout
 whitenoise
 numexpr
+pandas
+base64
