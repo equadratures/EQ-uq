@@ -130,7 +130,6 @@ PDF_GRAPH = dbc.Card(
 ###################################################################
 basis_dropdown = dcc.Dropdown(
     options=[
-        # {'label': 'Univariate', 'value': 'univariate'},
         {'label': 'Total-order', 'value': 'total-order'},
         {'label': 'Tensor-grid', 'value': 'tensor-grid'},
         {'label': 'Sparse-grid', 'value': 'sparse-grid'},
@@ -323,7 +322,7 @@ sobol_form = dbc.FormGroup(
     ]
 )
 
-sobol_plot = dcc.Graph(id='Sobol_plot', style={'width': 'inherit', 'height':'40vh'})
+sobol_plot = dcc.Graph(id='Sobol_plot', style={'width': 'inherit', 'height':'35vh'})
 
 left_side = [
     dbc.Row([dbc.Col(method_dropdown,width=6),
@@ -412,6 +411,7 @@ layout = dbc.Container(
         dcc.Store(id='ParamsObject'),
         dcc.Store(id='PolyObject'),
         dcc.Store(id='BasisObject'),
+        dcc.Store(id='DOE'),
         dcc.Store(id='UploadedDF'),
         tooltips
     ], fluid=True
@@ -642,23 +642,24 @@ def DOEdownload(n_clicks,model,params,basis,method):
 
 def ParseData(content,filename):
     content_type,content_string=content.split(',')
+    try:
+        if 'csv' in filename:
+            decoded = base64.b64decode(content_string)
+            df=np.genfromtxt(io.StringIO(decoded.decode('utf-8')),delimiter=',')
+            data=[]
+            for i in range(1,len(df)):
+                data.append(df[i][-1])
+            data=np.array(data).reshape(-1,1)
+            return data
+        elif 'npy' in filename:
+            r = base64.b64decode(content_string)
+            data=np.load(io.BytesIO(r)).reshape(-1,1)
+            return data
+    except Exception:
+        return None
 
-    if 'csv' in filename:
-        decoded = base64.b64decode(content_string)
-        df=pd.read_csv(io.StringIO(decoded.decode('utf-8'))).drop(['Unnamed: 0'],axis=1)
-    elif 'xls' in filename:
-        decoded = base64.b64decode(content_string)
-        df=pd.read_excel(io.BytesIO(decoded))
-    elif 'npy' in filename:
-        print(content_string)
-        print(type(content_string))
-        decoded=base64.b64decode(content_string)
-        print(type(decoded))
-        print(decoded)
-        df=pd.read_csv(ast.literal_eval(decoded).decode())
     else:
         raise PreventUpdate
-    return df
 
 @app.callback(
     ServersideOutput('UploadedDF','data'),
@@ -666,18 +667,19 @@ def ParseData(content,filename):
     Output('dataset-info-open','disabled'),
     Input('model_select','value'),
     Input('upload_data','filename'),
-    Input('upload_data','contents')
+    Input('upload_data','contents'),
+    Input('DOE','data')
 )
-def ParsedData(model,filename,content):
+def ParsedData(model,filename,content,DOE):
     if model=='offline':
         changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
         if 'upload_data' in changed_id:
-            try:
-                df=ParseData(content,filename)
-            except Exception as e:
-                return None,[],True
+            df=ParseData(content,filename)
             children=[filename]
-            return df,children,False
+            if df.shape[0]==DOE.shape[0]:
+                return df,children,False
+            else:
+                return None,'Error',True
         else:
             raise PreventUpdate
     else:
@@ -699,16 +701,27 @@ def toggle_modal(n1, n2, is_open):
     Output('upload_data_table','columns'),
     Input('filename_append','children'),
     Input("dataset-info", "is_open"),
-    Input("UploadedDF",'data')
+    Input("UploadedDF",'data'),
+    Input("DOE",'data')
 )
-def DatasetInfo(filename,is_open,df):
+def DatasetInfo(filename,is_open,df,DOE):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'dataset-info' in changed_id:
         if is_open:
-            data=df.to_dict('records')
+            data=[]
+            vals=np.column_stack((df,DOE))
+            for i in range(vals.shape[0]):
+                val_dict = {}
+                for j in range(vals.shape[1]):
+                    if j==0:
+                        val_dict['model_evaluations'] = vals[i][j]
+                    else:
+                        val_dict['DOE_{}'.format(j)] = vals[i][j]
+                    data.append(val_dict)
+            print(data)
             columns = [
-                {'name': i, 'id': i, 'deletable': True, 'type': 'numeric', 'format': Format(precision=4)}
-                for i in df.columns]
+                {'name': i, 'id': i, 'deletable': False, 'type': 'numeric', 'format': Format(precision=4)}
+                for i in data[0].keys()]
             return filename,data,columns
         else:
             raise PreventUpdate
@@ -778,6 +791,22 @@ def UpdateInputField(value):
         return 'Shape parameter...', ' ', '', '', show, hide, hide, hide
     elif value in ALL_4:
         return 'Shape param. A...', 'Shape param. B...', 'Lower bound...', 'Upper bound...', show, show, show, show
+
+
+# @app.callback(
+#     Output({'type':'radio_pdf','index': dash.dependencies.ALL},'disabled'),
+#     Input('AP_button','n_clicks'),
+#     prevent_intial_call=True
+# )
+# def Toggle(n_clicks):
+#     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+#     print(changed_id)
+#     if 'basis_button' in changed_id:
+#         return [{'disabled':False}]
+#     else:
+#         val={'disabled':True}
+#         return [val]*n_clicks
+
 
 
 ###################################################################
@@ -883,7 +912,6 @@ def toggle_modal(n1, n2, is_open):
      State({'type': 'max_val', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'min_val', 'index': dash.dependencies.ALL}, 'value'),
      State({'type': 'order', 'index': dash.dependencies.ALL}, 'value'),
-
      ],
     prevent_initial_call=True
 )
@@ -910,13 +938,12 @@ def PlotPdf(pdf_val, param1_val, params2_val, drop1_val, max_val, min_val, order
                     shape_parameter_B=params2_val[i], min=min_val[i], max=max_val[i], order=order[i])
 
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgb(0,176,246)'), fill='tonexty', mode='lines',
-                name='Polyfit', line_width=4, line_color='black')),
+                    name='Polyfit', line_width=4, line_color='black')),
         else:
             param, s_values, pdf = CreateParam(distribution=drop1_val[i], shape_parameter_A=param1_val[i],
                     shape_parameter_B=params2_val[i], min=min_val[i], max=max_val[i],order=order[i])
             fig.add_trace(go.Scatter(x=s_values, y=pdf, line=dict(color='rgb(0,176,246)'), fill='tonexty')),
     return fig
-
 ###################################################################
 # Callback to handle toggle switch in param definition card
 ###################################################################
@@ -1033,6 +1060,7 @@ def SetBasis(param_obj,n_clicks,basis_select, q_val, levels, growth_rule):
 ###################################################################
 @app.callback(
     Output('plot_basis', 'figure'),
+    ServersideOutput('DOE','data'),
     Input('ParamsObject', 'data'),
     Input('BasisObject', 'data'),
     Input('solver_method', 'value'),
@@ -1056,11 +1084,11 @@ def PlotBasis(params, mybasis, method, ndims):
                 fig.add_trace(go.Scatter(x=DOE[:,0], y=np.zeros_like(DOE[:,0]), mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=1,
                 line=dict(color='rgb(0,0,0)', width=1))))
                 fig.update_yaxes(visible=False)
-                return fig
+                return fig,DOE
             elif ndims == 2:
                 fig.add_trace(go.Scatter(x=DOE[:, 0], y=DOE[:, 1],mode='markers',marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6,
                 line=dict(color='rgb(0,0,0)', width=1))))
-                return fig
+                return fig,DOE
             elif ndims>=3:
                 fig.update_layout(dict(margin={'t': 0, 'r': 0, 'l': 0, 'b': 0, 'pad': 10}, autosize=True,
                   scene=dict(
@@ -1094,7 +1122,7 @@ def PlotBasis(params, mybasis, method, ndims):
                   ))
                 fig.add_trace(go.Scatter3d(x=DOE[:, 0], y=DOE[:, 1], z=DOE[:, 2], mode='markers',
                 marker=dict(size=8, color="rgb(144, 238, 144)", opacity=0.6, line=dict(color='rgb(0,0,0)', width=1))))
-                return fig
+                return fig,DOE
             else:
                 raise PreventUpdate
 
@@ -1154,18 +1182,17 @@ def SetModel(params,mybasis,method,model,data,expr,ndims):
             r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
             return mypoly, mean, var, r2_score, False,None,False,None ###
         else:
-            data=data.to_numpy()
             try:
                 mypoly.set_model(data)
             except KeyError:
                 return None,None,None,None,False,True,"Incorrect Model evaluations"
-            except AssertionError:
-                return None,None,None,True,None,False,True,"Incorrect Data uploaded"
-            except ValueError:
-                return None, None, None, None, False, True, "Incorrect Model evaluations"
-            except IndexError:
-                return None, None, None, None, False, True, "Incorrect Model evaluations"
-
+            # except AssertionError:
+            #     return None,None,None,True,None,False,True,"Incorrect Data uploaded"
+            # except ValueError:
+            #     return None, None, None, None, False, True, "Incorrect Model evaluations"
+            # except IndexError:
+            #     return None, None, None, None, False, True, "Incorrect Model evaluations"
+            #
 
             mean, var = mypoly.get_mean_and_variance()
             DOE=mypoly.get_points()
@@ -1174,7 +1201,7 @@ def SetModel(params,mybasis,method,model,data,expr,ndims):
             y_pred = mypoly.get_polyfit(DOE).squeeze()
             y_pred = y_pred.reshape(-1, 1)
             r2_score = eq.datasets.score(y_true, y_pred, metric='r2')
-            return mypoly, mean, var, r2_score, False, None  ###
+            return mypoly, mean, var, r2_score, False, None,False,None ###
     else:
         raise PreventUpdate
 
@@ -1216,15 +1243,17 @@ def SobolCheck(n_clicks,ndims,options):
 @app.callback(
     Output('Sobol_plot', 'figure'),
     Output('sobol_order','disabled'),
+    Output('Sobol_plot','style'),
     Input('PolyObject', 'data'),
     Input('sobol_order', 'value'),
     Trigger('CU_button', 'n_clicks'),
     Input('ndims','data'),
+    Input('model_select','value'),
     State('Sobol_plot', 'figure'),
     prevent_initial_call=True
 
 )
-def Plot_Sobol(mypoly, order, ndims, fig):
+def Plot_Sobol(mypoly, order, ndims, model,fig):
     changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'CU_button' in changed_id:
         layout = {'margin': {'t': 0, 'r': 0, 'l': 0, 'b': 0},
@@ -1273,8 +1302,11 @@ def Plot_Sobol(mypoly, order, ndims, fig):
                     # uniformtext_minsize=8, uniformtext_mode='hide',
                     xaxis_tickangle=-30
                 )
-
-        return fig, disabled
+        if model=='analytical':
+            style={'width': 'inherit', 'height':'35vh'}
+        else:
+            style = {'width': 'inherit', 'height': '35vh'}
+        return fig, disabled, style
     else:
         raise PreventUpdate
 
