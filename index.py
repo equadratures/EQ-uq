@@ -4,7 +4,7 @@ import dash_html_components as html
 from dash.dependencies import Input, Output
 
 from app import app, server
-from apps import Analytical, Offline
+from apps import Analytical, Data_driven
 from navbar import navbar
 from utils import convert_latex
 
@@ -119,8 +119,8 @@ def display_page(pathname):
         return homepage, {'display':'block'}
     if pathname == '/Analytical':
         return Analytical.layout, {'display':'block'}
-#    elif pathname == '/Offline':
-#        return Offline.layout, {'display':'block'}
+    elif pathname == '/Data_driven':
+        return Data_driven.layout, {'display':'block'}
     else:
         return container_404, {'display':'none'}
 

@@ -717,7 +717,8 @@ def DatasetInfo(filename,is_open,df,DOE):
                         val_dict['model_evaluations'] = vals[i][j]
                     else:
                         val_dict['DOE_{}'.format(j)] = vals[i][j]
-                    data.append(val_dict)
+                    if j==vals.shape[1]-1:
+                        data.append(val_dict)
             print(data)
             columns = [
                 {'name': i, 'id': i, 'deletable': False, 'type': 'numeric', 'format': Format(precision=4)}
