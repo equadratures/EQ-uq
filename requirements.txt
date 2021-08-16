@@ -7,7 +7,7 @@ dash-extensions
 flask_caching
 plotly
 numpy
-git+git://github.com/equadratures/equadratures@17f15fa#egg=equadratures
+git+https://github.com/Simardeep27/equadratures-1.git@feature_fitparam
 gunicorn
 pylibmc
 func-timeout
@@ -15,3 +15,4 @@ whitenoise
 numexpr
 pandas
 base64
+github.com/Simardeep27/equadratures-1.git

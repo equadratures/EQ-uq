@@ -475,8 +475,6 @@ def addInputs(n_clicks, children):
             {'label': 'Uniform', 'value': 'uniform'},
             {'label': 'Gaussian', 'value': 'gaussian'},
             {'label': 'Truncated Gaussian', 'value': 'truncated-gaussian'},
-#            {'label': 'Chi', 'value': 'chi'},
-#            {'label': 'Cauchy', 'value': 'cauchy'},
             {'label': 'LogNormal', 'value': 'lognormal'},
             {'label': 'Beta', 'value': 'beta'}
         ],
