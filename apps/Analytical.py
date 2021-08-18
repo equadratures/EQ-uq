@@ -543,7 +543,7 @@ def addInputs(n_clicks, children):
         [
             dbc.Label('Plot PDF'),
             dbc.Checklist(
-                options=[{"value": "val_{}".format(n_clicks),'disabled':True}],
+                options=[{"value": "val_{}".format(n_clicks),'disabled':False}],
                 switch=True, value=[0], id={"type": "radio_pdf","index": n_clicks},
             )
         ]

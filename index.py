@@ -46,9 +46,30 @@ Here, Effective Quadratures has calculated the quadrature points in $s_1$ (depen
 
 $$f(s_1) \approx \sum_{i=1}^n x_ip_i(s_1)$$
 
-....
+### Models
+There are three models present in the app **Analytical**, **Offline** and **Data-Driven** model. These models follows different approaches to
+and workflow to compute the statistical moments and quantify uncertainty.
 
+#### 1. Analytical Model
+The Analytical Model is a **proof-of-concept app** where the model is an analytical function defined by the user. This 
+“analytical” app helps the user to define a model function, and its input parameters.The Analytical Model contains features such as adding a parameter (maximum 5), defining various properties such as distribution,
+ statistical moments, min/max values and order. As different distributions have different attributes i.e. Uniform distribution has attributes min/max and order whereas Gaussian distribution has attributes mean, variance and order, the analytical model
+ handles this dynamic selection to provide users with various distributions to use the application at its full capacity.
 
+#### 2. Offline Model
+The Offline Model is quite similar to the analytical model in terms of workflow, the major difference between models is the
+application. The offline model is constructed for professional use. The parameter and basis definition is similar to the analytical model, but here the user is
+expected to upload the **DOE evaluations** of their simulations and then quantify uncertainty.  
+.
+
+#### 3. Data-Driven Model
+ The Data-Driven as the name suggests has a more **data-centric** workflow, unlike the previous models, the user uploads their data,
+select their output variable and based on their selection equadratures construct input parameters. Here, two choices are provided to the user for 
+Distribution Selection, first is **KDE** approach, which makes use of Kernel Density Estimation to produce accurate results but taking longer time to compute,
+second is the **Canonical** approach, here the users manually select the distribution of the input parameters, this method makes use of scipy fit method to compute the 
+statistical moments, which are then fed to Equadratures parameter. Using these methods, the user can gain insights regarding the senstivity of their dataset and the underlying statistical moments. 
+.
+ 
 '''
 
 home_text=dcc.Markdown(convert_latex(home_text),dangerously_allow_html=True, style={'text-align':'justify'})

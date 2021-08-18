@@ -1,9 +1,11 @@
 import io
+import time
 
 import dash
 import dash_html_components as html
 import dash_core_components as dcc
 import dash_bootstrap_components as dbc
+import equadratures.datasets
 from dash_extensions.enrich import Dash, ServersideOutput, Output, Input, State, Trigger
 from dash.exceptions import PreventUpdate
 import plotly.graph_objs as go
@@ -22,6 +24,7 @@ import equadratures.distributions as db
 import ast
 import numexpr as ne
 from utils import convert_latex
+from func_timeout import func_timeout, FunctionTimedOut
 
 from app import app
 
@@ -35,14 +38,15 @@ ALL_4 = ["beta", "truncated-gaussian"]
 ###################################################################
 info_text = r'''
 This app uses Equadratures to compute unceratinty in the user-defined data. In this model user 
-can define parameters, select basis function and create a polynomial.
+can upload their data to construct polynomials and compute uncertainty.
 
 #### Instructions
-1. Click **add parameter** button in parameter definition card to add parameters. Choose the type of distribution and on basis of **selected distribution**, input the required fields.
-2. To visualize the defined parameters **probability density function** press the toggle button to obtain the plot in Probability density function card
-3. Select the **basis** type from basis selection card and input required fields based on the basis selected (For example sparse-grid requires q-val, order and growth as input)
-4. Use **Set Basis** button to compute the **cardinality** and get insights regarding the basis function chosen in the basis selection card.
-5. Set the solver method for Polynomial and enter the **input function** in parameter definition card for computing **statistical moments**, use sobol dropdown to gain insights regarding **sensitivity analysis**
+1. Upload data in **.csv** format to construct parameters and choose the output variable.
+2. Select the type of approach for constructing parameters, **KDE** or **Canonical**.
+3. KDE approach as the name suggests makes use of KDE approach to compute the underlying parameter distribution(**Note**: The KDE approach is computationally expensive but is highly accurate)
+4. The Canonical approach uses scipy functions to fit the data and find statistical moments which are then fed to Equadratures to create parameters.
+5. For using the Canonical approach, it is required to set each input's distribution manually.
+6. After selecting the order and mode of computation, the workflow is nearly complete. On pressing the compute uncertainty button, the user can create the model using their input data to compute **statistical moments** and can use sobol dropdown to gain insights regarding **sensitivity analysis**
 
 '''
 
@@ -123,11 +127,11 @@ data_inputs = dbc.Row(
             [
             dbc.FormGroup(
                 [
-                dbc.Label('Parameter Definition:', html_for="mode-select",width=6),
+                dbc.Label('Distribution Selection:', html_for="mode-select",width=6),
                 dbc.Col(dcc.Dropdown(id="mode-select",options=[
-                    {'label':'Semi','value':'semi'},
-                    {'label': 'Automatic', 'value':'auto'},
-                ],searchable=False),width=4)
+                    {'label':'Canonical','value':'semi'},
+                    {'label': 'KDE', 'value':'auto'},
+                ],searchable=False,disabled=True,clearable=False),width=4)
                 ], row=True
             ),
             dbc.FormGroup(
@@ -139,7 +143,7 @@ data_inputs = dbc.Row(
             {'label': '3', 'value': 3},
             {'label': '4', 'value': 4},
             {'label': '5', 'value': 5}
-        ], searchable=False,disabled=False),width=4)
+        ], searchable=False,disabled=True,clearable=False),width=4)
                 ], row=True
             ),
             ]
@@ -160,10 +164,10 @@ TOP_CARD = dbc.Card(
                             dcc.Dropdown(
                                 options=[
                                     {'label': 'Upload Dataset', 'value': 'Upload_data'},
-                                    {'label': 'Dataset 1', 'value': 'Ds1'},
+                                    {'label': 'Probes', 'value': 'probes'},
                                 ],
                                 className="m-1", id='dataset_selection',
-                                placeholder='Select Dataset..', clearable=False),
+                                placeholder='Select Dataset..', clearable=False,value='Upload_data'),
                             width=3
                         ),
                         dbc.Col(Upload_dataset,width=5),
@@ -296,21 +300,24 @@ sobol_form = dbc.FormGroup(
     ]
 )
 
+output_vars=dbc.Row([
+            dbc.Col(mean_form),
+            dbc.Col(var_form),
+            dbc.Col(r2_form),
+        ])
+
+
 sobol_plot = dcc.Graph(id='Sobol_plot_datadriven', style={'width': 'inherit', 'height':'35vh'})
 
 left_side = [
     dbc.Row([dbc.Col(method_dropdown,width=6)]),
     dbc.Row([dbc.Col(
-        dbc.Button('Compute Polynomial', id='CU_button_datadriven', n_clicks=0, className='ip_buttons',color='primary',disabled=False))
-    ]),
+        dbc.Button('Compute Polynomial', id='CU_button_datadriven', n_clicks=0, className='ip_buttons',color='primary',disabled=True)
+    )
+]),
     dbc.Row([dbc.Col(dbc.Alert(id='poly-warning-datadriven',color='danger',is_open=False), width=3)]),
-    dbc.Row(
-        [
-            dbc.Col(mean_form),
-            dbc.Col(var_form),
-            dbc.Col(r2_form),
-        ]
-    ),
+    dbc.Spinner(html.Div([],id="loading-output"),color='primary'),
+    output_vars,
     dbc.Row(dbc.Col(sobol_form,width=6)),
     dbc.Row(dbc.Col(sobol_plot,width=8))
 ]
@@ -338,13 +345,21 @@ COMPUTE_CARD = dbc.Card(
     ], style={"height": "80vh"}
 )
 
-tooltips = html.Div(
-    [
-        dbc.Tooltip("Maximum of 5 parameters",target="AP_button"),
-        dbc.Tooltip("The variables should be of the form x1,x2...",target="input_func"),
-        # dbc.Tooltip('Set basis and Input Function first',target="CU_button"),
-    ]
+timeout_msg = dcc.Markdown(r'''
+**Timeout!**
+Sorry! The uncertainty computation timed out due to the 30 second time limit imposed by the heroku server. 
+You can try:
+- Lowering the polynomial order and/or number of rows in your dataset. 
+- Using Canonical Approach might be faster. 
+- Coming back later, when the server might be less busy.
+''')
+
+timeout_warning = dbc.Modal(
+        dbc.ModalBody(timeout_msg, style={'background-color':'rgba(160, 10, 0,0.2)'}),
+    id="timeout-warning",
+    is_open=False,
 )
+
 
 
 layout = dbc.Container(
@@ -365,7 +380,9 @@ dbc.Row(dbc.Col(COMPUTE_CARD,width=12),
         dcc.Store(id='ParamData'),
         dcc.Store(id='column-headers'),
         dcc.Store(id='BasisObj'),
-        dcc.Store(id='PolyObj')
+        dcc.Store(id='PolyObj'),
+
+        timeout_warning
     ],
     fluid=True
 
@@ -391,8 +408,6 @@ def ParseData(content,filename):
     except Exception:
         return None
 
-    else:
-        raise PreventUpdate
 
 @app.callback(
     ServersideOutput('UploadDF','data'),
@@ -400,14 +415,23 @@ def ParseData(content,filename):
     Output('filename_append','children'),
     Input('upload-data-driven','filename'),
     Input('upload-data-driven','contents'),
+    Input('dataset_selection','value'),
+    prevent_initial_call=True
 )
-def ParsedData(filename,content):
-    if content is not None:
-        (df,columns)=ParseData(content,filename)
-        children=[filename]
-        return df,columns,children
-    else:
-        raise PreventUpdate
+def ParsedData(filename,content,data_select):
+    if data_select=='Upload_data':
+        if content is not None:
+            (df,columns)=ParseData(content,filename)
+            children=[filename]
+            return df,columns,children
+        else:
+            raise PreventUpdate
+    elif data_select=='probes':
+        data = equadratures.datasets.load_eq_dataset('probes')
+        data = np.hstack([data['X'], data['y2']])
+        cols = ['Hole ellipse', 'Hole fwd/back', 'Hole angle', 'Kiel lip', 'Kiel outer', 'Kiel inner', 'Hole diam.',
+                'Recovery ratio objective']
+        return data,cols,['Probes']
 
 @app.callback(
     Output('upload-data-table','data'),
@@ -467,6 +491,49 @@ def InputVars(columns,select):
     else:
         raise PreventUpdate
 
+@app.callback(
+    Output('mode-select','disabled'),
+    Output('order-select','disabled'),
+    Input('upload-data-table','data'),
+)
+def ModeCheck(data):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    print(changed_id)
+    if 'upload-data-table' in changed_id:
+        return False,False
+    else:
+        return True,True
+
+
+@app.callback(
+    Output('CU_button_datadriven','disabled'),
+    Input('mode-select','value'),
+    Input('order-select','value'),
+    Input({'type':'drop_vals','index':dash.dependencies.ALL},'value')
+)
+def CUDisabledCheck(mode,order,distribution):
+    if mode=='semi':
+        if distribution or order is not None:
+            return False
+        else:
+            return True
+    elif mode=='auto':
+        if order is not None:
+            return False
+        else:
+            return True
+    else:
+        return True
+
+@app.callback(
+    Output("datadriven-info", "is_open"),
+    [Input("datadriven-info-open", "n_clicks"), Input("datadriven-info-close", "n_clicks")],
+    [State("datadriven-info", "is_open")],
+)
+def toggle_modal(n1, n2, is_open):
+    if n1 or n2:
+        return not is_open
+    return is_open
 
 
 def CreateParamWeights(data,columns,order):
@@ -502,6 +569,7 @@ def CreateParamSemi(data,columns,distributions,output,order):
 @app.callback(
     ServersideOutput('ParamData','data'),
     ServersideOutput('BasisObj','data'),
+    Output('timeout-warning','is_open'),
     Input('upload-data-table','data'),
     Input('upload-data-table', 'columns'),
     Input('output-select','value'),
@@ -518,13 +586,16 @@ def ComputeParams(data,columns,output,mode,order,n_clicks,distribution_semi,col_
         for i in range(len(data)):
             data[i].pop('{}'.format(output))
         if mode=='auto':
-            param_objs=CreateParamWeights(data,columns,order)
+            try:
+                param_objs=func_timeout(24,CreateParamWeights,args=(data,columns,order))
+            except FunctionTimedOut:
+                return None,None,True
             mybasis=Set_Basis()
-            return param_objs,mybasis
+            return param_objs,mybasis,False
         else:
             param_objs=CreateParamSemi(data,col_list,distribution_semi,output,order)
             mybasis=Set_Basis()
-            return param_objs,mybasis
+            return param_objs,mybasis,False
     else:
         raise PreventUpdate
 
@@ -542,6 +613,7 @@ def Set_Polynomial(parameters, basis, method,x_data,y_data):
     return mypoly
 
 @app.callback(
+    Output('loading-output','children'),
     ServersideOutput('PolyObj', 'data'),
     Output('mean_datadriven', 'value'),
     Output('variance_datadriven', 'value'),
@@ -553,40 +625,42 @@ def Set_Polynomial(parameters, basis, method,x_data,y_data):
     Input('column-headers','data'),
     Input('solver_method_data', 'value'),
     Input('output-select','value'),
+    Input('timeout-warning','is_open'),
     prevent_initial_call=True
 )
-def SetModel(params,mybasis,data,cols,method,y):
-    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
-    print('ch',changed_id)
-    if 'CU_button_datadriven' in changed_id:
-        print(cols)
-        y_data = []
-        x_data = [[None for y in range(len(data[0].keys()) - 1)]
+def SetModel(params,mybasis,data,cols,method,y,warning):
+    if warning:
+        return None,None,None,None,None
+    else:
+        changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+        if 'CU_button_datadriven' in changed_id:
+            y_data = []
+            x_data = [[None for y in range(len(data[0].keys()) - 1)]
                   for x in range(len(data))]
-        for i in range(len(data)):
-            for ind, j in enumerate(cols):
-                if j == '{}'.format(y):
-                    y_data.append(data[i][j])
-                else:
-                    x_data[i][ind] = data[i][j]
-        mypoly = Set_Polynomial(params, mybasis, method,x_data,y_data)
-        try:
-            mypoly.set_model()
-        except KeyError:
-            return None,None,None,None,False,True,"Incorrect Model evaluations"
+            for i in range(len(data)):
+                for ind, j in enumerate(cols):
+                    if j == '{}'.format(y):
+                        y_data.append(data[i][j])
+                    else:
+                        x_data[i][ind] = data[i][j]
+            mypoly = Set_Polynomial(params, mybasis, method,x_data,y_data)
+            try:
+                mypoly.set_model()
+            except KeyError:
+                return None,None,None,None,None
             # except AssertionError:
             #     return None,None,None,True,None,False,True,"Incorrect Data uploaded"
             # except ValueError:
             #     return None, None, None, None, False, True, "Incorrect Model evaluations"
             # except IndexError:
             #     return None, None, None, None, False, True, "Incorrect Model evaluations"
-        mean, var = mypoly.get_mean_and_variance()
-        DOE=mypoly.get_points()
-        y_pred = mypoly.get_polyfit(np.array(x_data))
-        r2_score = eq.datasets.score(np.array(y_data), y_pred, metric='r2')
-        return mypoly, mean, var, r2_score ###
-    else:
-        raise PreventUpdate
+            mean, var = mypoly.get_mean_and_variance()
+            DOE=mypoly.get_points()
+            y_pred = mypoly.get_polyfit(np.array(x_data))
+            r2_score = eq.datasets.score(np.array(y_data), y_pred, metric='r2')
+            return None,mypoly, mean, var, r2_score ###
+        else:
+            raise PreventUpdate
 
 
 @app.callback(
