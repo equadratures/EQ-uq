@@ -47,12 +47,12 @@ Here, Effective Quadratures has calculated the quadrature points in $s_1$ (depen
 $$f(s_1) \approx \sum_{i=1}^n x_ip_i(s_1)$$
 
 ### Models
-There are three models present in the app **Analytical**, **Offline** and **Data-Driven** model. These models follows different approaches to
+There are three models present in the app **Analytical**, **Offline** and **Data-Driven** model. These models follow different approaches 
 and workflow to compute the statistical moments and quantify uncertainty.
 
 #### 1. Analytical Model
 The Analytical Model is a **proof-of-concept app** where the model is an analytical function defined by the user. This 
-“analytical” app helps the user to define a model function, and its input parameters.The Analytical Model contains features such as adding a parameter (maximum 5), defining various properties such as distribution,
+“analytical” app helps the user to define a model function, and its input parameters.It contains features such as adding a parameter (maximum 5), defining various properties such as distribution,
  statistical moments, min/max values and order. As different distributions have different attributes i.e. Uniform distribution has attributes min/max and order whereas Gaussian distribution has attributes mean, variance and order, the analytical model
  handles this dynamic selection to provide users with various distributions to use the application at its full capacity.
 
