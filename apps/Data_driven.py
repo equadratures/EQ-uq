@@ -165,6 +165,7 @@ TOP_CARD = dbc.Card(
                                 options=[
                                     {'label': 'Upload Dataset', 'value': 'Upload_data'},
                                     {'label': 'Probes', 'value': 'probes'},
+                                    {'label':'Airfoil Noise','value':'airfoil'}
                                 ],
                                 className="m-1", id='dataset_selection',
                                 placeholder='Select Dataset..', clearable=False,value='Upload_data'),
@@ -247,7 +248,7 @@ method_dropdown = dcc.Dropdown(
         {'label': 'Least-squares', 'value': 'least-squares'},
     ],
     placeholder='Solver method', clearable=False,
-    value='numerical-integration',
+    value='least-squares',
     className="m-1", id='solver_method_data',
 )
 
@@ -431,7 +432,14 @@ def ParsedData(filename,content,data_select):
         data = np.hstack([data['X'], data['y2']])
         cols = ['Hole ellipse', 'Hole fwd/back', 'Hole angle', 'Kiel lip', 'Kiel outer', 'Kiel inner', 'Hole diam.',
                 'Recovery ratio objective']
-        return data,cols,['Probes']
+        return data, cols, ['Probes']
+
+    elif data_select == 'airfoil':
+        df = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/00291/airfoil_self_noise.dat',
+                         sep="\t", names=['Freq', 'AOA', 'ChordLength', 'FSV', 'Suction', 'SPL'])
+        cols=list(df.columns)
+        data=df.to_numpy()
+        return data,cols,['Airfoil Noise']
 
 @app.callback(
     Output('upload-data-table','data'),
