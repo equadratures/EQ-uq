@@ -15,4 +15,3 @@ whitenoise
 numexpr
 pandas
 base64
-github.com/Simardeep27/equadratures-1.git
