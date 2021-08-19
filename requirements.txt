@@ -7,7 +7,7 @@ dash-extensions
 flask_caching
 plotly
 numpy
-git+git://github.com/Simardeep27/equadratures-1.git@feature_fitparam#egg=equadratures
+git+https://github.com/Simardeep27/equadratures-1.git@feature_fitparam#egg=equadratures
 gunicorn
 pylibmc
 func-timeout
