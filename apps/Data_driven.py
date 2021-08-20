@@ -595,7 +595,7 @@ def ComputeParams(data,columns,output,mode,order,n_clicks,distribution_semi,col_
             data[i].pop('{}'.format(output))
         if mode=='auto':
             try:
-                param_objs=func_timeout(26,CreateParamWeights,args=(data,columns,order))
+                param_objs=func_timeout(27.5,CreateParamWeights,args=(data,columns,order))
             except FunctionTimedOut:
                 return None,None,True
             mybasis=Set_Basis()
