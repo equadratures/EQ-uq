@@ -1,5 +1,5 @@
 # EQ-uq
-An app for uncertainty quantification of computational models. The application uses Equadratures for creating parameters, basis and Polynomials to create models on user-defined data. Dash was used to design the layout of the application and it is deployed on Heroku.
+An app for uncertainty quantification of computational models. The application uses [Equadratures](https://github.com/equadratures/equadratures) for creating parameters, basis and Polynomials to create models on user-defined data. Dash was used to design the layout of the application and it is deployed on Heroku.
 
 The app can be viewed at http://www.uq.equadratures.org/
 
