@@ -13,3 +13,5 @@ The Offline Model is quite similar to the analytical model in terms of workflow,
   <li><b>Data-Driven Model</b></li>
 The Data-Driven as the name suggests has a more data-centric workflow, unlike the previous models, the user uploads their data, select their output variable and based on their selection equadratures construct input parameters.
  </ol>
+
+For more information: [Blog](https://discourse.equadratures.org/t/gsoc21-uncertainty-quantification-with-equadratures/172)
